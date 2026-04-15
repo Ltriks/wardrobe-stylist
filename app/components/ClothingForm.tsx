@@ -21,7 +21,7 @@ const SEASONS: { value: Season; label: string }[] = [
 
 interface ClothingFormProps {
   initialData?: Partial<ClothingItemFormData>;
-  onSubmit: (data: ClothingItemFormData) => void;
+  onSubmit: (data: ClothingItemFormData) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -63,10 +63,10 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
     }
   }, [initialData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || formData.season.length === 0) return;
-    onSubmit(formData);
+    await onSubmit(formData);
   };
 
   const toggleSeason = (season: Season) => {

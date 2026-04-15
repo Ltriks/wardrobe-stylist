@@ -3,21 +3,61 @@
 import { useState } from 'react';
 import { Outfit, ClothingItem } from '../types';
 import TryOnPreview from './TryOnPreview';
+import Modal from './Modal';
 
 interface OutfitListProps {
   outfits: Outfit[];
   items: ClothingItem[];
+  hasDefaultTemplate: boolean;
+  onGenerateBoard: (outfit: Outfit) => Promise<void>;
   onEdit: (outfit: Outfit) => void;
   onDelete: (id: string) => void;
+  onGenerateTryOn: (outfit: Outfit) => Promise<void>;
 }
 
 export default function OutfitList({
   outfits,
   items,
+  hasDefaultTemplate,
+  onGenerateBoard,
   onEdit,
   onDelete,
+  onGenerateTryOn,
 }: OutfitListProps) {
-  const [activeOutfitId, setActiveOutfitId] = useState<string | null>(null);
+  const [openOutfitId, setOpenOutfitId] = useState<string | null>(null);
+  const [detailPreviewModes, setDetailPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
+  const [hoveredOutfitId, setHoveredOutfitId] = useState<string | null>(null);
+
+  const renderStatusChips = (outfit: Outfit) => (
+    <>
+      <span
+        className={`rounded-full border px-2.5 py-1 text-[11px] shadow-sm ${
+          outfit.boardStatus === 'success'
+            ? 'border-gray-200 bg-white text-gray-700'
+            : outfit.boardStatus === 'generating'
+              ? 'border-amber-100 bg-amber-50 text-amber-700'
+              : outfit.boardStatus === 'failed'
+                ? 'border-rose-100 bg-rose-50 text-rose-700'
+                : 'border-gray-200 bg-white text-gray-600'
+        }`}
+      >
+        Board {outfit.boardStatus || (outfit.boardImageUrl ? 'success' : 'idle')}
+      </span>
+      <span
+        className={`rounded-full border px-2.5 py-1 text-[11px] shadow-sm ${
+          outfit.tryOnStatus === 'success'
+            ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+            : outfit.tryOnStatus === 'generating'
+              ? 'border-indigo-100 bg-indigo-50 text-indigo-700'
+              : outfit.tryOnStatus === 'failed'
+                ? 'border-rose-100 bg-rose-50 text-rose-700'
+                : 'border-gray-200 bg-white text-gray-600'
+        }`}
+      >
+        Try-on {outfit.tryOnStatus || 'idle'}
+      </span>
+    </>
+  );
 
   if (outfits.length === 0) {
     return (
@@ -29,22 +69,32 @@ export default function OutfitList({
     );
   }
 
+  const openOutfit = outfits.find(outfit => outfit.id === openOutfitId) ?? null;
+  const openCanShowTryOn = openOutfit
+    ? Boolean(openOutfit.tryOnImageUrl || openOutfit.tryOnStatus === 'generating' || openOutfit.tryOnStatus === 'failed')
+    : false;
+
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {outfits.map(outfit => {
-        const isActive = activeOutfitId === outfit.id;
+    <>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {outfits.map(outfit => {
+        const canShowTryOn = Boolean(outfit.tryOnImageUrl || outfit.tryOnStatus === 'generating' || outfit.tryOnStatus === 'failed');
+        const cardPreviewMode =
+          outfit.tryOnImageUrl && hoveredOutfitId === outfit.id
+            ? 'board'
+            : outfit.tryOnImageUrl
+              ? 'tryOn'
+              : 'board';
 
         return (
           <div
             key={outfit.id}
-            className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-200 ${
-              isActive
-                ? 'border-indigo-300 shadow-lg ring-2 ring-indigo-100 lg:col-span-3'
-                : 'border-gray-200 hover:shadow-md'
-            }`}
+            onMouseEnter={() => setHoveredOutfitId(outfit.id)}
+            onMouseLeave={() => setHoveredOutfitId(current => (current === outfit.id ? null : current))}
+            className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
           >
-            <div className={isActive ? 'lg:grid lg:grid-cols-[minmax(0,1.5fr)_320px]' : ''}>
-              <div className="border-b border-gray-200 bg-gradient-to-b from-white to-gray-50 p-4 lg:border-b-0 lg:border-r">
+            <div>
+              <div className="border-b border-gray-200 bg-gradient-to-b from-white to-gray-50 p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-base font-medium leading-snug text-gray-900">{outfit.name}</h3>
@@ -70,45 +120,85 @@ export default function OutfitList({
                 </div>
 
                 <div className="relative">
-                  <TryOnPreview outfit={outfit} expanded={isActive} />
-
-                  <div className="absolute right-1 top-1 z-10">
-                    <button
-                      onClick={() => setActiveOutfitId(isActive ? null : outfit.id)}
-                      className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                        isActive
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white/90 text-gray-600 hover:bg-white'
-                      }`}
-                    >
-                      {isActive ? 'Done' : 'Open Board'}
-                    </button>
-                  </div>
+                  <TryOnPreview
+                    outfit={outfit}
+                    expanded={false}
+                    mode={cardPreviewMode}
+                    actionSlot={
+                      <div className="flex flex-wrap items-center gap-2">
+                        {outfit.tryOnImageUrl && (
+                          <button
+                            onClick={() => {
+                              setDetailPreviewModes(current => ({
+                                ...current,
+                                [outfit.id]: 'tryOn',
+                              }));
+                              setOpenOutfitId(outfit.id);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
+                          >
+                            <span className="text-[11px] leading-none">✦</span>
+                            View Try-On
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setDetailPreviewModes(current => ({
+                              ...current,
+                              [outfit.id]: current[outfit.id] ?? (outfit.tryOnImageUrl ? 'tryOn' : 'board'),
+                            }));
+                            setOpenOutfitId(outfit.id);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
+                        >
+                          <span className="text-[11px] leading-none">↗</span>
+                          Inspect
+                        </button>
+                      </div>
+                    }
+                    statusSlot={renderStatusChips(outfit)}
+                  />
                 </div>
-
-                {isActive && (
-                  <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-3 text-xs leading-5 text-indigo-900">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                      Board View
-                    </p>
-                    <p className="mt-1">
-                      Review the generated board as a styling overview. This MVP focuses on composition and overall balance,
-                      not body simulation.
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-3 p-4">
-                {isActive && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      Review Focus
+                {outfit.tryOnStatus === 'generating' && (
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                      Generating In Background
                     </p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      Use this board to decide whether the look works as a set. The next iteration can add filtering and
-                      more advanced board composition controls.
+                    <p className="mt-1 leading-5">
+                      You can keep browsing or close the detail view. We will update this outfit card when the try-on preview finishes.
                     </p>
+                  </div>
+                )}
+
+                {outfit.boardStatus === 'generating' && (
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-500">
+                      Generating Board
+                    </p>
+                    <p className="mt-1 leading-5">
+                      The overview board is still being composed in the background. You can keep browsing and this card will update when it is ready.
+                    </p>
+                  </div>
+                )}
+
+                {outfit.boardStatus === 'failed' && (
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                      Board Failed
+                    </p>
+                    <p className="mt-1 leading-5">
+                      {outfit.boardError || 'The overview board could not be generated this time.'}
+                    </p>
+                    <button
+                      onClick={() => void onGenerateBoard(outfit)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
+                    >
+                      <span className="text-[11px] leading-none">↻</span>
+                      Retry Board
+                    </button>
                   </div>
                 )}
 
@@ -131,9 +221,6 @@ export default function OutfitList({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-                    Board image {outfit.boardImageUrl ? 'ready' : 'pending'}
-                  </span>
                   {outfit.occasion && (
                     <span className="rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-xs text-purple-700">
                       {outfit.occasion}
@@ -156,7 +243,162 @@ export default function OutfitList({
             </div>
           </div>
         );
-      })}
-    </div>
+        })}
+      </div>
+
+      <Modal
+        isOpen={Boolean(openOutfit)}
+        onClose={() => setOpenOutfitId(null)}
+        title={openOutfit ? openOutfit.name : 'Outfit'}
+        sizeClassName="max-w-6xl"
+      >
+        {openOutfit && (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_320px]">
+            <div className="space-y-4">
+              <TryOnPreview
+                outfit={openOutfit}
+                expanded={true}
+                mode={detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')}
+                actionSlot={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'board' }))}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
+                        (detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'board'
+                          ? 'bg-slate-900 text-white hover:bg-slate-800'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md'
+                      }`}
+                    >
+                      <span className="text-[11px] leading-none">▦</span>
+                      Board
+                    </button>
+                    {((!openOutfit.boardImageUrl && openOutfit.boardStatus !== 'generating') || openOutfit.boardStatus === 'failed') && (
+                      <button
+                        onClick={async () => {
+                          setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'board' }));
+                          await onGenerateBoard(openOutfit);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-xs font-semibold text-amber-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+                      >
+                        <span className="text-[11px] leading-none">↻</span>
+                        {openOutfit.boardStatus === 'failed' ? 'Retry Board' : 'Generate Board'}
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'tryOn' }));
+                        if (!openOutfit.tryOnImageUrl && openOutfit.tryOnStatus !== 'generating') {
+                          await onGenerateTryOn(openOutfit);
+                        }
+                      }}
+                      disabled={openOutfit.tryOnStatus === 'generating'}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
+                        (detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
+                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                          : 'border border-emerald-200 bg-white text-emerald-700 hover:-translate-y-0.5 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-md'
+                      } disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm`}
+                    >
+                      <span className="text-[11px] leading-none">✦</span>
+                      {openOutfit.tryOnStatus === 'generating'
+                        ? 'Generating…'
+                        : openCanShowTryOn
+                          ? 'Try-On'
+                          : hasDefaultTemplate
+                            ? 'Generate Try-On'
+                            : 'Upload Template First'}
+                    </button>
+                  </div>
+                }
+                statusSlot={renderStatusChips(openOutfit)}
+              />
+
+              <div className="min-h-[132px] rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Review Focus
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {(detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
+                    ? hasDefaultTemplate
+                      ? 'This try-on preview uses your default model photo plus the current board image to create a styled editorial reference.'
+                      : 'Upload and set a default template photo first, then generate a try-on preview from this board.'
+                    : 'Use the board to review the look as a set. This is still an overview board, not a precise garment simulation.'}
+                </p>
+              </div>
+
+              {openOutfit.tryOnStatus === 'generating' && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                    Background Job
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-indigo-900">
+                    The try-on image is still being generated. You can close this window and come back later. The request will keep running.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="mb-3 text-xs uppercase tracking-wide text-gray-400">Items ({openOutfit.items.length})</p>
+                <div className="space-y-2">
+                  {openOutfit.items.map(outfitItem => {
+                    const item = items.find(candidate => candidate.id === outfitItem.clothingItemId);
+                    if (!item) return null;
+
+                    return (
+                      <div key={outfitItem.clothingItemId} className="flex items-center gap-2 text-sm">
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
+                        <span className="truncate text-gray-700">{item.name}</span>
+                        <span className="ml-auto shrink-0 text-xs text-gray-400">{item.category}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {openOutfit.occasion && (
+                  <span className="rounded-full border border-purple-100 bg-purple-50 px-2 py-0.5 text-xs text-purple-700">
+                    {openOutfit.occasion}
+                  </span>
+                )}
+                {openOutfit.season && (
+                  <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
+                    {openOutfit.season}
+                  </span>
+                )}
+              </div>
+
+              {openOutfit.notes && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">Notes</p>
+                  <p className="text-sm leading-relaxed text-gray-600">{openOutfit.notes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEdit(openOutfit)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
+                >
+                  <span className="text-[12px] leading-none">✎</span>
+                  Edit Outfit
+                </button>
+                <button
+                  onClick={() => {
+                    setOpenOutfitId(null);
+                    onDelete(openOutfit.id);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-600 hover:shadow-md"
+                >
+                  <span className="text-[12px] leading-none">🗑</span>
+                  Delete Outfit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

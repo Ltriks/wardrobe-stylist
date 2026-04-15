@@ -2,6 +2,8 @@
 
 export type Category = 'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory' | 'other';
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+export type BoardStatus = 'idle' | 'generating' | 'success' | 'failed';
+export type TryOnStatus = 'idle' | 'generating' | 'success' | 'failed';
 
 export interface ClothingItem {
   id: string;
@@ -29,6 +31,12 @@ export interface Outfit {
   name: string;
   items: OutfitItem[]; // Array of outfit items with adjustment parameters
   boardImageUrl?: string;
+  boardStatus?: BoardStatus;
+  boardError?: string;
+  tryOnImageUrl?: string;
+  tryOnStatus?: TryOnStatus;
+  tryOnPrompt?: string;
+  tryOnError?: string;
   occasion?: string;
   season?: Season[];
   notes?: string;
@@ -63,6 +71,8 @@ export interface OutfitFormData {
   name: string;
   itemIds: string[];
   boardImageUrl?: string;
+  boardStatus?: BoardStatus;
+  boardError?: string;
   occasion?: string;
   season?: Season[];
   notes?: string;
@@ -79,6 +89,7 @@ export interface OutfitItemAdjustmentFormData {
 // Pending item for batch upload
 export interface PendingItem {
   id: string;
+  batchId?: string;
   imageUrl: string;
   standardizedImageUrl?: string; // Standardized image URL for preview/try-on
   cutoutImageUrl?: string; // Future transparent cutout used for outfit boards/collages

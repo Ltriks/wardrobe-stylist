@@ -231,15 +231,26 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 ? `${selectedItems.length} pieces ready for this look`
                 : 'Choose at least one piece to start building the board.'}
             </p>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-3">
               {selectedItems.map(item => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white px-3 py-2 text-sm"
+                  className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white px-3 py-2.5 text-sm"
                 >
-                  <div className="min-w-0">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-indigo-100 bg-slate-50">
+                    {item.standardizedImageUrl || item.imageUrl ? (
+                      <img
+                        src={item.standardizedImageUrl || item.imageUrl}
+                        alt={item.name}
+                        className="h-full w-full object-contain p-1.5"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-lg text-slate-300">👔</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.color} · {item.category}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{item.color} · {item.category}</p>
                   </div>
                   <button
                     type="button"

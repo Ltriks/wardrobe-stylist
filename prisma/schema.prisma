@@ -1,0 +1,86 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model ClothingItem {
+  id                   String       @id @default(cuid())
+  name                 String
+  category             String
+  color                String
+  season               String
+  imageUrl             String?
+  standardizedImageUrl String?
+  cutoutImageUrl       String?
+  notes                String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  outfitItems          OutfitItem[]
+}
+
+model Outfit {
+  id            String       @id @default(cuid())
+  name          String
+  boardImageUrl String?
+  boardStatus   String       @default("idle")
+  boardError    String?
+  tryOnImageUrl String?
+  tryOnStatus   String       @default("idle")
+  tryOnPrompt   String?
+  tryOnError    String?
+  occasion      String?
+  season        String
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  items         OutfitItem[]
+}
+
+model OutfitItem {
+  id             String       @id @default(cuid())
+  outfitId       String
+  clothingItemId String
+  sortOrder      Int          @default(0)
+  offsetX        Int          @default(0)
+  offsetY        Int          @default(0)
+  scale          Float        @default(1)
+  outfit         Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+}
+
+model PersonalTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  imageUrl  String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PendingUploadItem {
+  id                   String   @id
+  batchId              String
+  imageUrl             String
+  standardizedImageUrl String?
+  cutoutImageUrl       String?
+  suggestedName        String
+  suggestedCategory    String
+  suggestedColor       String
+  suggestedSeason      String
+  status               String
+  aiConfidence         Float?
+  categorySource       String?
+  colorSource          String?
+  seasonSource         String?
+  rawPredictions       String?
+  isDuplicate          Boolean  @default(false)
+  duplicateReason      String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([batchId])
+}

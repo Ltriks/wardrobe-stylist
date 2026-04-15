@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -9,6 +11,19 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, sizeClassName = 'max-w-md' }: ModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (

@@ -1,32 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { basename, extname, join, resolve } from 'node:path';
+import { extname, join } from 'node:path';
 import sharp from 'sharp';
+
+import { ensureWardrobeAssetDirs, publicAssetUrl, resolveUploadAsset, standardizedDir } from '@/lib/wardrobe-assets';
 
 export const runtime = 'nodejs';
 
 const TARGET_SIZE = 512;
-
-function resolveUploadPath(sourceUrl: string) {
-  const uploadsDir = resolve(process.cwd(), 'public', 'uploads');
-  const pathname = sourceUrl.startsWith('http')
-    ? new URL(sourceUrl).pathname
-    : sourceUrl;
-
-  if (!pathname.startsWith('/uploads/')) {
-    throw new Error('Invalid upload path');
-  }
-
-  const filename = basename(pathname);
-  const absolutePath = resolve(uploadsDir, filename);
-
-  if (!absolutePath.startsWith(uploadsDir)) {
-    throw new Error('Invalid upload filename');
-  }
-
-  return { uploadsDir, filename, absolutePath };
-}
 
 async function createStandardizedPng(sourcePath: string, destinationPath: string) {
   const normalizedBuffer = await sharp(sourcePath)
@@ -65,7 +47,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'sourceUrl is required' }, { status: 400 });
     }
 
-    const { uploadsDir, filename, absolutePath } = resolveUploadPath(sourceUrl);
+    await ensureWardrobeAssetDirs();
+
+    const { filename, absolutePath } = resolveUploadAsset(sourceUrl);
 
     if (!existsSync(absolutePath)) {
       return NextResponse.json({ error: 'Source image not found' }, { status: 404 });
@@ -73,13 +57,13 @@ export async function POST(request: NextRequest) {
 
     const nameWithoutExt = filename.slice(0, filename.length - extname(filename).length);
     const standardizedFilename = `${nameWithoutExt}-standardized.png`;
-    const standardizedPath = join(uploadsDir, standardizedFilename);
+    const standardizedPath = join(standardizedDir, standardizedFilename);
 
     await createStandardizedPng(absolutePath, standardizedPath);
 
     return NextResponse.json({
       success: true,
-      url: `/uploads/${standardizedFilename}`,
+      url: publicAssetUrl('standardized', standardizedFilename),
     });
   } catch (error) {
     console.error('Garment processing failed:', error);

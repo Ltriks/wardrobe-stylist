@@ -2,15 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { PendingItem, Category, Season, ClothingItem } from '../types';
-import { getAllItems } from '../data';
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as tf from '@tensorflow/tfjs';
 
 interface BatchUploadButtonProps {
-  onUploadComplete: (items: PendingItem[]) => void;
+  onUploadComplete: (items: PendingItem[]) => void | Promise<void>;
+  existingItems: ClothingItem[];
 }
 
-export default function BatchUploadButton({ onUploadComplete }: BatchUploadButtonProps) {
+export default function BatchUploadButton({ onUploadComplete, existingItems }: BatchUploadButtonProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [model, setModel] = useState<mobilenet.MobileNet | null>(null);
@@ -363,7 +363,6 @@ export default function BatchUploadButton({ onUploadComplete }: BatchUploadButto
         };
 
         // Duplicate detection
-        const existingItems = getAllItems ? getAllItems() : [];
         const duplicateCheck = detectDuplicate(pendingItem, existingItems, pendingItems);
         if (duplicateCheck.isDuplicate) {
           pendingItem.isDuplicate = true;
@@ -383,7 +382,7 @@ export default function BatchUploadButton({ onUploadComplete }: BatchUploadButto
     setUploadProgress(0);
 
     if (pendingItems.length > 0) {
-      onUploadComplete(pendingItems);
+      await onUploadComplete(pendingItems);
     }
 
     // Reset file input

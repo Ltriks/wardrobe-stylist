@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import { join } from 'path';
-import { existsSync } from 'fs';
+import sharp from 'sharp';
+
+import { ensureWardrobeAssetDirs, originalsDir, publicAssetUrl } from '@/lib/wardrobe-assets';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,44 +17,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    const originalExtension = (file.name.split('.').pop() || '').toLowerCase();
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+    const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'];
+
+    if (!validTypes.includes(file.type) && !validExtensions.includes(originalExtension)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Supported: JPEG, PNG, GIF, WebP' },
+        { error: 'Invalid file type. Supported: JPEG, PNG, GIF, WebP, HEIC, HEIF' },
         { status: 400 }
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validate file size (max 20MB)
+    const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File too large. Max size: 5MB' },
+        { error: 'File too large. Max size: 20MB' },
         { status: 400 }
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    await ensureWardrobeAssetDirs();
 
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 8);
-    const extension = file.name.split('.').pop();
-    const filename = `cloth-${timestamp}-${randomString}.${extension}`;
-    const filepath = join(uploadsDir, filename);
 
     // Convert file to buffer and save
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    let buffer: Buffer = Buffer.from(bytes);
+    let outputExtension = originalExtension || 'jpg';
+
+    if (['heic', 'heif'].includes(originalExtension) || ['image/heic', 'image/heif'].includes(file.type)) {
+      try {
+        buffer = Buffer.from(await sharp(buffer).rotate().jpeg({ quality: 92 }).toBuffer());
+        outputExtension = 'jpg';
+      } catch (error) {
+        console.error('HEIC conversion error:', error);
+        return NextResponse.json(
+          { error: 'This HEIC/HEIF image could not be converted. Please export it as JPEG or PNG and try again.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const filename = `cloth-${timestamp}-${randomString}.${outputExtension}`;
+    const filepath = join(originalsDir, filename);
     await writeFile(filepath, buffer);
 
     // Return the public URL
-    const publicUrl = `/uploads/${filename}`;
+    const publicUrl = publicAssetUrl('originals', filename);
 
     return NextResponse.json({
       success: true,

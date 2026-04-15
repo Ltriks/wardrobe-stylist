@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
-import { createItem } from '../data';
+import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
 
 const CATEGORIES: { value: Category; label: string }[] = [
   { value: 'top', label: 'Top' },
@@ -24,37 +24,40 @@ const SEASONS: { value: Season; label: string }[] = [
 export default function BatchConfirmPage() {
   const router = useRouter();
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [batchId, setBatchId] = useState<string | undefined>(undefined);
 
-  // Load pending items from sessionStorage
   useEffect(() => {
-    const stored = sessionStorage.getItem('batchUploadPending');
-    if (stored) {
-      try {
-        const items = JSON.parse(stored);
-        setPendingItems(items);
-      } catch (e) {
-        console.error('Failed to parse pending items:', e);
-      }
-    }
+    const params = new URLSearchParams(window.location.search);
+    const nextBatchId = params.get('batchId') || undefined;
+    setBatchId(nextBatchId);
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const items = await fetchPendingItems(batchId);
+        setPendingItems(items);
+      } catch (error) {
+        console.error('Failed to load pending items:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [batchId]);
 
   useEffect(() => {
     const validIds = new Set(pendingItems.map(item => item.id));
     setSelectedIds(prev => prev.filter(id => validIds.has(id)));
-
-    if (pendingItems.length > 0) {
-      sessionStorage.setItem('batchUploadPending', JSON.stringify(pendingItems));
-    } else {
-      sessionStorage.removeItem('batchUploadPending');
-    }
   }, [pendingItems]);
 
-  const updateItem = (id: string, updates: Partial<PendingItem>) => {
+  const updateItem = async (id: string, updates: Partial<PendingItem>) => {
+    const updated = await updatePendingItemApi(id, updates);
     setPendingItems(prev =>
       prev.map(item =>
-        item.id === id ? { ...item, ...updates } : item
+        item.id === id ? updated : item
       )
     );
   };
@@ -71,32 +74,31 @@ export default function BatchConfirmPage() {
     setSelectedIds(allSelected ? [] : pendingIds);
   };
 
-  const applyBulkCategory = (category: Category) => {
+  const applyBulkCategory = async (category: Category) => {
     if (selectedIds.length === 0) return;
 
-    setPendingItems(prev =>
-      prev.map(item =>
-        selectedIds.includes(item.id)
-          ? {
-              ...item,
-              suggestedCategory: category,
-              categorySource: 'default',
-            }
-          : item
-      )
+    await Promise.all(
+      selectedIds.map(id =>
+        updatePendingItemApi(id, {
+          suggestedCategory: category,
+          categorySource: 'default',
+        }),
+      ),
     );
+
+    const items = await fetchPendingItems(batchId);
+    setPendingItems(items);
   };
 
-  const toggleSeason = (id: string, season: Season) => {
-    setPendingItems(prev =>
-      prev.map(item => {
-        if (item.id !== id) return item;
-        const newSeasons = item.suggestedSeason.includes(season)
-          ? item.suggestedSeason.filter(s => s !== season)
-          : [...item.suggestedSeason, season];
-        return { ...item, suggestedSeason: newSeasons };
-      })
-    );
+  const toggleSeason = async (id: string, season: Season) => {
+    const item = pendingItems.find(pendingItem => pendingItem.id === id);
+    if (!item) return;
+
+    const newSeasons = item.suggestedSeason.includes(season)
+      ? item.suggestedSeason.filter(s => s !== season)
+      : [...item.suggestedSeason, season];
+
+    await updateItem(id, { suggestedSeason: newSeasons });
   };
 
   const confirmAll = async () => {
@@ -112,20 +114,23 @@ export default function BatchConfirmPage() {
         color: item.suggestedColor,
         season: item.suggestedSeason,
         imageUrl: item.imageUrl,
+        standardizedImageUrl: item.standardizedImageUrl,
+        cutoutImageUrl: item.cutoutImageUrl,
       };
 
-      createItem(formData);
+      await createItemApi(formData);
     }
 
+    await clearPendingBatchApi(batchId);
     // Navigate back to clothes list
     router.push('/');
   };
 
-  const skipItem = (id: string) => {
-    updateItem(id, { status: 'skipped' });
+  const skipItem = async (id: string) => {
+    await updateItem(id, { status: 'skipped' });
   };
 
-  const confirmItem = (id: string) => {
+  const confirmItem = async (id: string) => {
     const item = pendingItems.find(item => item.id === id);
     if (!item) return;
 
@@ -139,19 +144,26 @@ export default function BatchConfirmPage() {
       standardizedImageUrl: item.standardizedImageUrl,
     };
 
-    createItem(formData);
-
-    // Compute updated items before state update
-    const updatedItems = pendingItems.filter(item => item.id !== id);
-
-    // Remove the item from the pending list
-    setPendingItems(updatedItems);
+    await createItemApi(formData);
+    await deletePendingItemApi(id);
+    setPendingItems(prev => prev.filter(item => item.id !== id));
   };
 
   const pendingCount = pendingItems.filter(item => item.status === 'pending').length;
   const pendingIds = pendingItems.filter(item => item.status === 'pending').map(item => item.id);
   const allPendingSelected = pendingIds.length > 0 && pendingIds.every(id => selectedIds.includes(id));
   const selectedCount = selectedIds.length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-300 text-5xl mb-4">⏳</div>
+          <p className="text-gray-600">Loading pending items...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (pendingItems.length === 0) {
     return (
@@ -216,7 +228,7 @@ export default function BatchConfirmPage() {
                 <button
                   key={cat.value}
                   type="button"
-                  onClick={() => applyBulkCategory(cat.value)}
+                  onClick={() => void applyBulkCategory(cat.value)}
                   className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   {cat.label}
@@ -236,10 +248,10 @@ export default function BatchConfirmPage() {
               item={item}
               isSelected={selectedIds.includes(item.id)}
               onToggleSelected={() => toggleSelected(item.id)}
-              onUpdate={(updates) => updateItem(item.id, updates)}
-              onToggleSeason={(season) => toggleSeason(item.id, season)}
-              onSkip={() => skipItem(item.id)}
-              onConfirm={() => confirmItem(item.id)}
+              onUpdate={(updates) => void updateItem(item.id, updates)}
+              onToggleSeason={(season) => void toggleSeason(item.id, season)}
+              onSkip={() => void skipItem(item.id)}
+              onConfirm={() => void confirmItem(item.id)}
             />
           ))}
         </div>

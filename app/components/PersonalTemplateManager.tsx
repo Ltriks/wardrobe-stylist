@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { PersonalTemplate } from '../types';
-import { getAllTemplates, createTemplate, setDefaultTemplate, deleteTemplate } from '../data';
+import { createTemplateApi, deleteTemplateApi, fetchTemplates, setDefaultTemplateApi } from '../lib/wardrobe-api';
 
 interface PersonalTemplateManagerProps {
   onClose?: () => void;
@@ -10,15 +10,23 @@ interface PersonalTemplateManagerProps {
 }
 
 export default function PersonalTemplateManager({ onClose, onTemplateChange }: PersonalTemplateManagerProps) {
-  const [templates, setTemplates] = useState<PersonalTemplate[]>(getAllTemplates());
+  const [templates, setTemplates] = useState<PersonalTemplate[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const refresh = () => {
-    setTemplates(getAllTemplates());
+  const refresh = async () => {
+    const nextTemplates = await fetchTemplates();
+    setTemplates(nextTemplates);
     onTemplateChange?.();
   };
+
+  useEffect(() => {
+    refresh().catch(err => {
+      console.error('Failed to load templates:', err);
+      setError('Failed to load templates.');
+    });
+  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,16 +44,16 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
         body: formData,
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error('Upload failed');
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Upload failed');
       }
 
-      const data = await res.json();
       const name = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
-      createTemplate({ name, imageUrl: data.url });
-      refresh();
+      await createTemplateApi({ name, imageUrl: data.url });
+      await refresh();
     } catch (err) {
-      setError('Upload failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -54,15 +62,15 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
     }
   };
 
-  const handleSetDefault = (id: string) => {
-    setDefaultTemplate(id);
-    refresh();
+  const handleSetDefault = async (id: string) => {
+    await setDefaultTemplateApi(id);
+    await refresh();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Delete this template?')) {
-      deleteTemplate(id);
-      refresh();
+      await deleteTemplateApi(id);
+      await refresh();
     }
   };
 
@@ -129,14 +137,14 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
               <div className="flex gap-1 shrink-0">
                 {!template.isDefault && (
                   <button
-                    onClick={() => handleSetDefault(template.id)}
+                    onClick={() => void handleSetDefault(template.id)}
                     className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
                   >
                     Set Default
                   </button>
                 )}
                 <button
-                  onClick={() => handleDelete(template.id)}
+                    onClick={() => void handleDelete(template.id)}
                   className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
                 >
                   Delete

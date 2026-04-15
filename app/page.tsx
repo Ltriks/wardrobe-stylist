@@ -1,17 +1,30 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClothingItem, Category, Season, ClothingItemFormData, Outfit, OutfitFormData, PendingItem, PersonalTemplate } from './types';
-import { getAllItems, createItem, updateItem, deleteItem, filterItems, getAllOutfits, createOutfit, updateOutfit, deleteOutfit, getDefaultTemplate } from './data';
 import { ClothingForm, ClothingList, FilterBar, Modal, OutfitForm, OutfitList, BatchUploadButton, PersonalTemplateManager } from './components';
+import {
+  createItemApi,
+  createOutfitApi,
+  createPendingBatchApi,
+  deleteItemApi,
+  deleteOutfitApi,
+  fetchItems,
+  fetchOutfits,
+  fetchTemplates,
+  generateBoardApi,
+  generateTryOnApi,
+  updateItemApi,
+  updateOutfitApi,
+} from './lib/wardrobe-api';
 
 type TabType = 'clothes' | 'outfits';
 
 export default function Home() {
   const router = useRouter();
-  const [items, setItems] = useState<ClothingItem[]>(getAllItems());
-  const [outfits, setOutfits] = useState<Outfit[]>(getAllOutfits());
+  const [items, setItems] = useState<ClothingItem[]>([]);
+  const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
   const [selectedSeason, setSelectedSeason] = useState<Season | ''>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,15 +32,60 @@ export default function Home() {
   const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('clothes');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [defaultTemplate, setDefaultTemplateState] = useState<PersonalTemplate | undefined>(getDefaultTemplate());
+  const [defaultTemplate, setDefaultTemplateState] = useState<PersonalTemplate | undefined>(undefined);
   const [isSubmittingOutfit, setIsSubmittingOutfit] = useState(false);
+  const [toast, setToast] = useState<{ tone: 'info' | 'success' | 'error'; message: string } | null>(null);
+
+  const loadInitialData = useCallback(async () => {
+    const [nextItems, nextOutfits, nextTemplates] = await Promise.all([
+      fetchItems(),
+      fetchOutfits(),
+      fetchTemplates(),
+    ]);
+
+    setItems(nextItems);
+    setOutfits(nextOutfits);
+    setDefaultTemplateState(nextTemplates.find(template => template.isDefault));
+  }, []);
+
+  useEffect(() => {
+    loadInitialData().catch(error => {
+      console.error('Failed to load wardrobe data:', error);
+    });
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timeout = window.setTimeout(() => {
+      setToast(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  useEffect(() => {
+    const hasGeneratingOutfit = outfits.some(
+      outfit => outfit.tryOnStatus === 'generating' || outfit.boardStatus === 'generating',
+    );
+    if (!hasGeneratingOutfit) return;
+
+    const interval = window.setInterval(() => {
+      loadInitialData().catch(error => {
+        console.error('Failed to refresh outfit status:', error);
+      });
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [outfits, loadInitialData]);
 
   // Filter items based on selected filters
   const filteredItems = useMemo(() => {
-    return filterItems(
-      selectedCategory || undefined,
-      selectedSeason || undefined
-    );
+    return items.filter(item => {
+      const matchCategory = !selectedCategory || item.category === selectedCategory;
+      const matchSeason = !selectedSeason || item.season.includes(selectedSeason);
+      return matchCategory && matchSeason;
+    });
   }, [items, selectedCategory, selectedSeason]);
 
   // Clothing handlers
@@ -45,35 +103,31 @@ export default function Home() {
 
   const handleDeleteItem = useCallback((id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
-      const result = deleteItem(id);
-      if (result) {
-        setItems(getAllItems());
-      }
+      void (async () => {
+        await deleteItemApi(id);
+        setItems(currentItems => currentItems.filter(item => item.id !== id));
+      })();
     }
   }, []);
 
-  const handleItemSubmit = useCallback((data: ClothingItemFormData) => {
+  const handleItemSubmit = useCallback(async (data: ClothingItemFormData) => {
     if (editingItem) {
-      const updated = updateItem(editingItem.id, data);
-      if (updated) {
-        setItems(getAllItems());
-      }
+      const updated = await updateItemApi(editingItem.id, data);
+      setItems(currentItems =>
+        currentItems.map(item => (item.id === updated.id ? updated : item)),
+      );
     } else {
-      const newItem = createItem(data);
-      if (newItem) {
-        setItems(getAllItems());
-      }
+      const newItem = await createItemApi(data);
+      setItems(currentItems => [newItem, ...currentItems]);
     }
     setIsModalOpen(false);
     setEditingItem(null);
   }, [editingItem]);
 
   // Batch upload handler
-  const handleBatchUploadComplete = useCallback((pendingItems: PendingItem[]) => {
-    // Store pending items in sessionStorage
-    sessionStorage.setItem('batchUploadPending', JSON.stringify(pendingItems));
-    // Navigate to batch confirm page
-    router.push('/batch-confirm');
+  const handleBatchUploadComplete = useCallback(async (pendingItems: PendingItem[]) => {
+    const result = await createPendingBatchApi(pendingItems);
+    router.push(`/batch-confirm?batchId=${encodeURIComponent(result.batchId)}`);
   }, [router]);
 
   // Outfit handlers
@@ -91,10 +145,10 @@ export default function Home() {
 
   const handleDeleteOutfit = useCallback((id: string) => {
     if (confirm('Are you sure you want to delete this outfit?')) {
-      const result = deleteOutfit(id);
-      if (result) {
-        setOutfits(getAllOutfits());
-      }
+      void (async () => {
+        await deleteOutfitApi(id);
+        setOutfits(currentOutfits => currentOutfits.filter(outfit => outfit.id !== id));
+      })();
     }
   }, []);
 
@@ -103,54 +157,55 @@ export default function Home() {
 
     setIsSubmittingOutfit(true);
     try {
-      const selectedItems = getAllItems().filter(item => data.itemIds.includes(item.id));
-      let boardImageUrl = editingOutfit?.boardImageUrl;
-
-      try {
-        const boardResponse = await fetch('/api/generate-board', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            outfitName: data.name,
-            items: selectedItems
-              .filter(item => item.standardizedImageUrl || item.imageUrl)
-              .map(item => ({
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                imageUrl: item.standardizedImageUrl || item.imageUrl,
-              })),
-          }),
-        });
-
-        const boardResult = await boardResponse.json();
-        if (boardResponse.ok) {
-          boardImageUrl = boardResult.url;
-        } else {
-          console.warn('Board generation failed, saving outfit without board image:', boardResult.error);
-        }
-      } catch (error) {
-        console.warn('Board generation failed, saving outfit without board image:', error);
-      }
-
       const payload: OutfitFormData = {
         ...data,
-        boardImageUrl,
+        boardImageUrl: undefined,
+        boardStatus: 'generating',
+        boardError: undefined,
       };
 
+      let savedOutfit: Outfit;
       if (editingOutfit) {
-        const updated = updateOutfit(editingOutfit.id, payload);
-        if (updated) {
-          setOutfits(getAllOutfits());
-        }
+        const updated = await updateOutfitApi(editingOutfit.id, payload);
+        setOutfits(currentOutfits =>
+          currentOutfits.map(outfit => (outfit.id === updated.id ? updated : outfit)),
+        );
+        savedOutfit = updated;
       } else {
-        const newOutfit = createOutfit(payload);
-        if (newOutfit) {
-          setOutfits(getAllOutfits());
-        }
+        const newOutfit = await createOutfitApi(payload);
+        setOutfits(currentOutfits => [newOutfit, ...currentOutfits]);
+        savedOutfit = newOutfit;
       }
+
+      setToast({
+        tone: 'info',
+        message: `Generating a board for “${savedOutfit.name}” in the background.`,
+      });
+
+      try {
+        const queued = await generateBoardApi(savedOutfit.id);
+        setOutfits(currentOutfits =>
+          currentOutfits.map(outfit => (outfit.id === queued.id ? queued : outfit)),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Board generation failed.';
+        setOutfits(currentOutfits =>
+          currentOutfits.map(outfit =>
+            outfit.id === savedOutfit.id
+              ? {
+                  ...outfit,
+                  boardStatus: 'failed',
+                  boardError: message,
+                }
+              : outfit,
+          ),
+        );
+        setToast({
+          tone: 'error',
+          message: `Board generation for “${savedOutfit.name}” failed.`,
+        });
+      }
+
       setIsModalOpen(false);
       setEditingOutfit(null);
     } finally {
@@ -165,13 +220,109 @@ export default function Home() {
     setIsSubmittingOutfit(false);
   }, []);
 
+  const handleGenerateTryOn = useCallback(async (outfit: Outfit) => {
+    if (!defaultTemplate) {
+      alert('Please upload and set a default template before generating a try-on preview.');
+      return;
+    }
+
+    setOutfits(currentOutfits =>
+      currentOutfits.map(currentOutfit =>
+        currentOutfit.id === outfit.id
+          ? {
+              ...currentOutfit,
+              tryOnStatus: 'generating',
+              tryOnError: undefined,
+            }
+          : currentOutfit,
+      ),
+    );
+    setToast({
+      tone: 'info',
+      message: `Generating a try-on preview for “${outfit.name}” in the background.`,
+    });
+
+    try {
+      const updated = await generateTryOnApi(outfit.id);
+      setOutfits(currentOutfits =>
+        currentOutfits.map(currentOutfit => (currentOutfit.id === updated.id ? updated : currentOutfit)),
+      );
+      setToast({
+        tone: 'success',
+        message: `Try-on preview for “${updated.name}” is ready.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Try-on generation failed.';
+      setOutfits(currentOutfits =>
+        currentOutfits.map(currentOutfit =>
+          currentOutfit.id === outfit.id
+            ? {
+                ...currentOutfit,
+                tryOnStatus: 'failed',
+                tryOnError: message,
+              }
+            : currentOutfit,
+        ),
+      );
+      setToast({
+        tone: 'error',
+        message: `Try-on preview for “${outfit.name}” failed: ${message}`,
+      });
+    }
+  }, [defaultTemplate]);
+
+  const handleGenerateBoard = useCallback(async (outfit: Outfit) => {
+    setOutfits(currentOutfits =>
+      currentOutfits.map(currentOutfit =>
+        currentOutfit.id === outfit.id
+          ? {
+              ...currentOutfit,
+              boardStatus: 'generating',
+              boardError: undefined,
+            }
+          : currentOutfit,
+      ),
+    );
+    setToast({
+      tone: 'info',
+      message: `Generating a board for “${outfit.name}” in the background.`,
+    });
+
+    try {
+      const updated = await generateBoardApi(outfit.id);
+      setOutfits(currentOutfits =>
+        currentOutfits.map(currentOutfit => (currentOutfit.id === updated.id ? updated : currentOutfit)),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Board generation failed.';
+      setOutfits(currentOutfits =>
+        currentOutfits.map(currentOutfit =>
+          currentOutfit.id === outfit.id
+            ? {
+                ...currentOutfit,
+                boardStatus: 'failed',
+                boardError: message,
+              }
+            : currentOutfit,
+        ),
+      );
+      setToast({
+        tone: 'error',
+        message: `Board generation for “${outfit.name}” failed.`,
+      });
+    }
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setSelectedCategory('');
     setSelectedSeason('');
   }, []);
 
   const handleTemplateChange = useCallback(() => {
-    setDefaultTemplateState(getDefaultTemplate());
+    void (async () => {
+      const templates = await fetchTemplates();
+      setDefaultTemplateState(templates.find(template => template.isDefault));
+    })();
   }, []);
 
   const wardrobeSummary = useMemo(() => {
@@ -241,7 +392,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-2">
               {activeTab === 'clothes' ? (
                 <>
-                  <BatchUploadButton onUploadComplete={handleBatchUploadComplete} />
+                  <BatchUploadButton onUploadComplete={handleBatchUploadComplete} existingItems={items} />
                   <button
                     onClick={handleAddItem}
                     className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
@@ -335,12 +486,15 @@ export default function Home() {
               </div>
             </div>
 
-            <OutfitList
-              outfits={outfits}
-              items={items}
-              onEdit={handleEditOutfit}
-              onDelete={handleDeleteOutfit}
-            />
+              <OutfitList
+                outfits={outfits}
+                items={items}
+                hasDefaultTemplate={Boolean(defaultTemplate)}
+                onGenerateBoard={handleGenerateBoard}
+                onEdit={handleEditOutfit}
+                onDelete={handleDeleteOutfit}
+                onGenerateTryOn={handleGenerateTryOn}
+              />
           </>
         )}
       </div>
@@ -405,6 +559,22 @@ export default function Home() {
           onTemplateChange={handleTemplateChange}
         />
       </Modal>
+
+      {toast && (
+        <div className="pointer-events-none fixed bottom-5 right-5 z-[60] max-w-sm">
+          <div
+            className={`rounded-2xl border px-4 py-3 shadow-lg backdrop-blur ${
+              toast.tone === 'success'
+                ? 'border-emerald-200 bg-emerald-50/95 text-emerald-900'
+                : toast.tone === 'error'
+                  ? 'border-rose-200 bg-rose-50/95 text-rose-900'
+                  : 'border-indigo-200 bg-white/95 text-slate-900'
+            }`}
+          >
+            <p className="text-sm font-medium leading-6">{toast.message}</p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
