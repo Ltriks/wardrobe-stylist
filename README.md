@@ -1,71 +1,158 @@
 # Wardrobe Stylist
 
-A web application to organize your wardrobe and create outfits.
+Wardrobe Stylist is a Next.js app for clothing catalog management, outfit composition, outfit board generation, and try-on preview.
 
-## MVP Phase 1: Clothing Management & Basic Outfit Creation
+## Current Stage
 
-### Features
-- View and manage clothing items
-- Create basic outfits by mixing and matching clothes
-- Simple, clean interface
+This project is in the "data and workflow first" stage:
+- Clothing item management
+- Outfit composition and persistence
+- Outfit board generation
+- Try-on generation API integration
 
-### Tech Stack
+## Tech Stack
+
 - Next.js 14 (App Router)
-- TypeScript
-- React 18
+- React 18 + TypeScript
+- Prisma + SQLite
+- Tailwind CSS
 
-## Getting Started
+## Quick Start (Local Development)
 
 ### Prerequisites
-- Node.js 18+ installed
-- npm or yarn
 
-### Installation
+- Node.js 20+ (recommended)
+- npm 10+
 
-1. Install dependencies:
+### Install and run
+
 ```bash
 npm install
-```
-
-2. Run the development server:
-```bash
+npx prisma generate
 npm run dev
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Build for Production
+### Optional environment variables
+
+Create `.env.local` if you want AI image generation enabled:
+
+```env
+DASHSCOPE_API_KEY=your_api_key
+DASHSCOPE_IMAGE_MODEL=qwen-image-2.0-pro
+DASHSCOPE_IMAGE_BASE_URL=https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+```
+
+If no API key is configured, generation-related endpoints will fail gracefully.
+
+## Database
+
+Prisma schema is in `prisma/schema.prisma` and uses SQLite by default:
+
+- DB file: `prisma/dev.db`
+- Provider: `sqlite`
+
+Useful commands:
 
 ```bash
+npx prisma generate
+npx prisma db push
+```
+
+## Production Run (Single Machine)
+
+```bash
+npm install
+npx prisma generate
 npm run build
-npm start
+npm run start
 ```
 
-## Project Structure
+Default URL: `http://localhost:3000`
 
+## Deploy To Windows For LAN Access
+
+### 1) Prepare server laptop
+
+- Install Node.js LTS (20/22)
+- Ensure laptop and phones are in the same Wi-Fi
+- Open an inbound firewall port (for example `3000`)
+
+### 2) Start service on all interfaces
+
+In PowerShell:
+
+```powershell
+$env:NODE_ENV="production"
+$env:HOSTNAME="0.0.0.0"
+$env:PORT="3000"
+npm install
+npx prisma generate
+npm run build
+npm run start
 ```
-wardrobe-stylist/
-├── app/
-│   ├── layout.tsx      # Root layout
-│   ├── page.tsx        # Home page
-│   └── globals.css     # Global styles
-├── public/             # Static assets (add later)
-├── package.json        # Dependencies
-├── tsconfig.json       # TypeScript config
-├── next.config.mjs     # Next.js config
-└── README.md           # This file
+
+### 3) Access from phone
+
+- Run `ipconfig` on the laptop
+- Find the IPv4 address, e.g. `192.168.1.23`
+- Open `http://192.168.1.23:3000` on phone browser
+
+### 4) Keep app running after reboot (recommended)
+
+Use `nssm` to register Node as a Windows service:
+- Service name: `WardrobeStylist`
+- Startup type: automatic
+- Working directory: project folder
+- App command: `npm`
+- App args: `run start`
+
+Also set service-level environment variables:
+- `NODE_ENV=production`
+- `HOSTNAME=0.0.0.0`
+- `PORT=3000`
+
+## Packaging / Release Workflow
+
+Recommended release model: source package + one-click install script.
+
+### Build a release zip
+
+On your build machine:
+
+```bash
+npm install
+npx prisma generate
+npm run build
 ```
 
-## Next Steps (MVP Phase 1)
+Create a release folder and include:
+- `app/`
+- `lib/`
+- `public/`
+- `prisma/schema.prisma` (exclude local `dev.db`)
+- `package.json`
+- `pnpm-lock.yaml` (if you keep it) / lockfile in use
+- `next.config.js`
+- `tsconfig.json`
 
-1. Add clothing management pages
-2. Implement outfit creation editor
-3. Add database for storing clothes and outfits
-4. Add image upload functionality
+Then zip it, for example: `wardrobe-stylist-release.zip`.
 
-## Development
+### Install on target Windows machine
+
+1. Unzip to `C:\wardrobe-stylist`
+2. Add `.env.production` if needed
+3. Run:
+   - `npm install`
+   - `npx prisma generate`
+   - `npm run build`
+   - `npm run start`
+4. (Optional) Register as Windows service with `nssm`
+
+## NPM Scripts
 
 - `npm run dev` - Start development server
-- `npm run build` - Build for production
+- `npm run build` - Build production bundle
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
