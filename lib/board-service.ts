@@ -18,7 +18,18 @@ import {
 import { getOutfitRecord, listClothingItems, updateOutfitBoardState } from '@/lib/wardrobe-store';
 
 const execFileAsync = promisify(execFile);
-const REMBG_PYTHON = '/Users/mcq/Repos/wardrobe-stylist/.venv-rembg/bin/python3';
+
+/** Python that has `rembg` installed. Override with env `REMBG_PYTHON` if needed (e.g. Windows path). */
+function getRembgPythonExecutable(): string {
+  const fromEnv = process.env.REMBG_PYTHON?.trim();
+  if (fromEnv) return fromEnv;
+
+  if (process.platform === 'win32') {
+    return join(process.cwd(), '.venv-rembg', 'Scripts', 'python.exe');
+  }
+
+  return join(process.cwd(), '.venv-rembg', 'bin', 'python3');
+}
 
 type BoardItemInput = {
   id: string;
@@ -252,7 +263,7 @@ async function runRembg(inputPath: string, outputPath: string) {
     'target.write_bytes(remove(source.read_bytes()))',
   ].join('; ');
 
-  await execFileAsync(REMBG_PYTHON, ['-c', script, inputPath, outputPath], {
+  await execFileAsync(getRembgPythonExecutable(), ['-c', script, inputPath, outputPath], {
     timeout: 120000,
     maxBuffer: 10 * 1024 * 1024,
   });

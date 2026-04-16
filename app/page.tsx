@@ -50,7 +50,9 @@ export default function Home() {
 
   useEffect(() => {
     loadInitialData().catch(error => {
+      const message = error instanceof Error ? error.message : 'Failed to load wardrobe data.';
       console.error('Failed to load wardrobe data:', error);
+      setToast({ tone: 'error', message });
     });
   }, [loadInitialData]);
 
@@ -104,8 +106,13 @@ export default function Home() {
   const handleDeleteItem = useCallback((id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       void (async () => {
-        await deleteItemApi(id);
-        setItems(currentItems => currentItems.filter(item => item.id !== id));
+        try {
+          await deleteItemApi(id);
+          setItems(currentItems => currentItems.filter(item => item.id !== id));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Delete failed.';
+          setToast({ tone: 'error', message });
+        }
       })();
     }
   }, []);
@@ -146,8 +153,13 @@ export default function Home() {
   const handleDeleteOutfit = useCallback((id: string) => {
     if (confirm('Are you sure you want to delete this outfit?')) {
       void (async () => {
-        await deleteOutfitApi(id);
-        setOutfits(currentOutfits => currentOutfits.filter(outfit => outfit.id !== id));
+        try {
+          await deleteOutfitApi(id);
+          setOutfits(currentOutfits => currentOutfits.filter(outfit => outfit.id !== id));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Delete failed.';
+          setToast({ tone: 'error', message });
+        }
       })();
     }
   }, []);

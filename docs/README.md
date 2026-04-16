@@ -71,7 +71,13 @@ DASHSCOPE_IMAGE_MODEL=qwen-image-2.0-pro
 DASHSCOPE_IMAGE_BASE_URL=https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
 ```
 
-If no API key is configured, generation-related endpoints will fail gracefully.
+Board generation uses Python `rembg` when available. By default it looks for a project-local venv (`.venv-rembg/bin/python3` on macOS/Linux, `.venv-rembg/Scripts/python.exe` on Windows). Override if needed:
+
+```env
+REMBG_PYTHON=/absolute/path/to/python
+```
+
+If no API key is configured, try-on generation will fail until you set one. If `rembg` is missing, board generation falls back to Sharp-based trimming (see `lib/board-service.ts`).
 
 ## Database
 

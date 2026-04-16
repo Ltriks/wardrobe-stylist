@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Category, Season } from '../../types';
 
-// AI Classification API for wardrobe-stylist
-// Uses TensorFlow.js + MobileNet for real vision inference on category
-// Color and season use deterministic methods (filename-based)
+// Server-side classification: filename heuristics only (no vision model on this route).
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,11 +17,7 @@ export async function POST(request: NextRequest) {
     // Simulate AI processing delay (500ms)
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Try real vision inference for category (MobileNet)
-    // Note: This runs in browser, not Node.js server
-    // For server-side, we return rule-based as primary, with note about browser-side AI
-    
-    // Extract color from filename (deterministic, not vision-based)
+    // Extract color from filename
     const color = extractColorFromFilename(filename || imageUrl);
     
     // Extract category from filename (rule-based fallback)
@@ -46,7 +40,7 @@ export async function POST(request: NextRequest) {
       seasonSource: 'rule',
       seasonConfidence: confidence.season,
       overallConfidence: confidence.overall,
-      note: 'Server-side uses rule-based classification. Real AI (MobileNet) runs in browser for category inference.',
+      note: 'Server-side uses filename-based rules only.',
     });
   } catch (error) {
     console.error('AI classification error:', error);
@@ -55,47 +49,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-
-function mapMobileNetToCategory(predictions: any[]): { category: Category; categoryConfidence: number } {
-  // MobileNet returns predictions like: [{ className: 't-shirt, tee shirt', probability: 0.95 }, ...]
-  // Map to our coarse categories
-
-  const topKeywords = ['shirt', 't-shirt', 'tee', 'blouse', 'top', 'tank top', 'sweater', 'hoodie'];
-  const bottomKeywords = ['pants', 'jeans', 'trousers', 'skirt', 'shorts', 'leggings'];
-  const outerwearKeywords = ['jacket', 'coat', 'blazer', 'vest', 'cardigan', 'sweater', 'hoodie'];
-  const shoesKeywords = ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'footwear'];
-  const accessoryKeywords = ['bag', 'hat', 'cap', 'scarf', 'belt', 'glasses', 'sunglasses'];
-
-  for (const pred of predictions) {
-    const className = pred.className.toLowerCase();
-    const probability = pred.probability;
-
-    // Check outerwear first (can overlap with top)
-    if (outerwearKeywords.some(k => className.includes(k))) {
-      return { category: 'outerwear', categoryConfidence: probability };
-    }
-
-    if (topKeywords.some(k => className.includes(k))) {
-      return { category: 'top', categoryConfidence: probability };
-    }
-
-    if (bottomKeywords.some(k => className.includes(k))) {
-      return { category: 'bottom', categoryConfidence: probability };
-    }
-
-    if (shoesKeywords.some(k => className.includes(k))) {
-      return { category: 'shoes', categoryConfidence: probability };
-    }
-
-    if (accessoryKeywords.some(k => className.includes(k))) {
-      return { category: 'accessory', categoryConfidence: probability };
-    }
-  }
-
-  // If no match, use highest probability prediction as "other"
-  return { category: 'other', categoryConfidence: predictions[0]?.probability || 0.3 };
 }
 
 // Helper functions for rule-based classification

@@ -39,9 +39,30 @@ function parsePendingItem(item: JsonRecord): PendingItem {
 }
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
-  const data = await response.json();
+  const text = await response.text();
+  let data: unknown;
+
+  if (text.trim()) {
+    try {
+      data = JSON.parse(text) as unknown;
+    } catch {
+      if (!response.ok) {
+        throw new Error(text.slice(0, 320) || `Request failed (${response.status})`);
+      }
+      throw new Error('Invalid response from server.');
+    }
+  }
+
   if (!response.ok) {
-    throw new Error(data?.error || 'Request failed');
+    const message =
+      data &&
+      typeof data === 'object' &&
+      data !== null &&
+      'error' in data &&
+      typeof (data as { error: unknown }).error === 'string'
+        ? (data as { error: string }).error
+        : `Request failed (${response.status})`;
+    throw new Error(message);
   }
 
   return data as T;
