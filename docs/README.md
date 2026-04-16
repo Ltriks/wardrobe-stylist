@@ -19,6 +19,14 @@ Deleting images under `public/uploads/` does not automatically change SQLite. St
 
 For a clean slate in local development you can remove `prisma/dev.db` and run `npx prisma db push` (or `npx prisma migrate reset` if you use migrations).
 
+**One-shot reset (uploads + SQLite):** from the repo root, stop `npm run dev`, then run:
+
+```bash
+npm run reset:local -- --yes
+```
+
+Equivalent: `RESET_LOCAL_DATA=1 npm run reset:local` (no `--` needed before the env on Unix).
+
 If an API key ever appeared in git history, rotate it with your provider and keep secrets only in `.env.local` (never commit).
 
 ## Current Stage
