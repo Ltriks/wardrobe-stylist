@@ -278,6 +278,41 @@ export default function BatchConfirmPage() {
   );
 }
 
+function PendingItemImage({ item }: { item: PendingItem }) {
+  const sources = [item.standardizedImageUrl, item.imageUrl].filter((source): source is string => Boolean(source));
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [showPlaceholder, setShowPlaceholder] = useState(sources.length === 0);
+
+  useEffect(() => {
+    setSourceIndex(0);
+    setShowPlaceholder(sources.length === 0);
+  }, [item.id, item.standardizedImageUrl, item.imageUrl, sources.length]);
+
+  if (showPlaceholder || sources.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-gray-300">
+        <span className="text-sm font-medium">No image</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={sources[sourceIndex]}
+      alt={item.suggestedName}
+      className="w-full h-full object-cover"
+      onError={() => {
+        if (sourceIndex < sources.length - 1) {
+          setSourceIndex(prev => prev + 1);
+          return;
+        }
+
+        setShowPlaceholder(true);
+      }}
+    />
+  );
+}
+
 function PendingItemCard({
   item,
   isSelected,
@@ -302,14 +337,7 @@ function PendingItemCard({
     <div className={`bg-white rounded-lg border ${isSkipped ? 'border-gray-200 opacity-50' : 'border-gray-200'} shadow-sm overflow-hidden`}>
       {/* Image */}
       <div className="relative h-40 bg-gray-100">
-        <img
-          src={item.standardizedImageUrl || item.imageUrl}
-          alt={item.suggestedName}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
+        <PendingItemImage item={item} />
         {isSkipped && (
           <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
             <span className="text-gray-500 font-medium">Skipped</span>

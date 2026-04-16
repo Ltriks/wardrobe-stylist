@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 import { ClothingItem, Category, Season } from '../types';
 
 interface ClothingListProps {
@@ -24,6 +26,41 @@ const seasonColors: Record<Season, string> = {
   winter: 'bg-blue-50 text-blue-600 border-blue-100',
 };
 
+function ItemImagePreview({ item }: { item: ClothingItem }) {
+  const sources = [item.standardizedImageUrl, item.imageUrl].filter((source): source is string => Boolean(source));
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [showPlaceholder, setShowPlaceholder] = useState(sources.length === 0);
+
+  useEffect(() => {
+    setSourceIndex(0);
+    setShowPlaceholder(sources.length === 0);
+  }, [item.id, item.standardizedImageUrl, item.imageUrl, sources.length]);
+
+  if (showPlaceholder || sources.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">
+        {getCategoryIcon(item.category)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={sources[sourceIndex]}
+      alt={item.name}
+      className="w-full h-full object-contain p-2"
+      onError={() => {
+        if (sourceIndex < sources.length - 1) {
+          setSourceIndex(prev => prev + 1);
+          return;
+        }
+
+        setShowPlaceholder(true);
+      }}
+    />
+  );
+}
+
 export default function ClothingList({ items, onEdit, onDelete }: ClothingListProps) {
   if (items.length === 0) {
     return (
@@ -45,15 +82,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
           {/* Image Preview */}
           {item.standardizedImageUrl || item.imageUrl ? (
             <div className="mb-3 h-44 bg-gray-50 rounded-xl overflow-hidden border border-gray-200 relative">
-              <img
-                src={item.standardizedImageUrl || item.imageUrl}
-                alt={item.name}
-                className="w-full h-full object-contain p-2"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-300 text-3xl">${getCategoryIcon(item.category)}</div>`;
-                }}
-              />
+              <ItemImagePreview item={item} />
               <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   onClick={() => onEdit(item)}

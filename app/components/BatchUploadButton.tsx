@@ -10,6 +10,14 @@ interface BatchUploadButtonProps {
   existingItems: ClothingItem[];
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return 'Unknown error';
+}
+
 export default function BatchUploadButton({ onUploadComplete, existingItems }: BatchUploadButtonProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -232,6 +240,31 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
     return window.location.origin + result.url;
   };
 
+  const loadImageForAnalysis = async (...candidates: Array<string | undefined>): Promise<HTMLImageElement> => {
+    const urls = candidates.filter((candidate): candidate is string => Boolean(candidate));
+    let lastError: unknown = new Error('No image URL available for analysis');
+
+    for (const url of urls) {
+      try {
+        const imgElement = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const nextImage = new Image();
+          nextImage.crossOrigin = 'anonymous';
+          nextImage.onload = () => resolve(nextImage);
+          nextImage.onerror = () => reject(new Error(`Image failed to load: ${url}`));
+          nextImage.src = url;
+
+          setTimeout(() => reject(new Error(`Image load timeout: ${url}`)), 5000);
+        });
+
+        return imgElement;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -299,17 +332,7 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
         // Use AI classification only if model is already loaded
         if (modelLoaded && model) {
           try {
-            // Create image element for classification
-            const imgElement = new Image();
-            imgElement.crossOrigin = 'anonymous';
-            imgElement.src = standardizedImageUrl ?? imageUrl;
-
-            // Wait for image to load
-            await new Promise((resolve, reject) => {
-              imgElement.onload = resolve;
-              imgElement.onerror = reject;
-              setTimeout(() => reject(new Error('Image load timeout')), 5000);
-            });
+            const imgElement = await loadImageForAnalysis(standardizedImageUrl, imageUrl);
 
             // Classify using MobileNet for category
             const classificationResult = await classifyImage(imgElement);
@@ -334,7 +357,7 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
             }
           } catch (aiError) {
             console.warn('AI classification failed, using rules fallback:', aiError);
-            rawPredictions = 'AI classify failed';
+            rawPredictions = `AI classify failed: ${getErrorMessage(aiError)}`;
           }
         } else {
           // Model not loaded yet, use fallback

@@ -14,6 +14,7 @@ data/
 
 # Python virtualenvs used for local tooling (e.g. rembg)
 .venv-rembg/
+.venv*/
 
 # Local SQLite database files
 *.db
