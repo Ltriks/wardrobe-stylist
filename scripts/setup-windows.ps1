@@ -20,15 +20,45 @@ function Require-Command {
   return $command
 }
 
-function Get-PythonCommand {
-  $pyCommand = Get-Command py -ErrorAction SilentlyContinue
-  if ($pyCommand) {
-    return @("py", "-3")
+function Test-CommandInvocation {
+  param([string[]]$CommandParts)
+
+  if (-not $CommandParts -or $CommandParts.Length -eq 0) {
+    return $false
   }
 
-  $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-  if ($pythonCommand) {
-    return @("python")
+  $commandPath = $CommandParts[0]
+  if ($commandPath -match '[\\/]') {
+    if (-not (Test-Path $commandPath)) {
+      return $false
+    }
+  } elseif (-not (Get-Command $commandPath -ErrorAction SilentlyContinue)) {
+    return $false
+  }
+
+  $commandArgs = Get-CommandParts -CommandParts $CommandParts
+
+  try {
+    & $commandPath @($commandArgs + @("--version")) *> $null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
+  }
+}
+
+function Get-PythonCommand {
+  $candidates = @(
+    @("py", "-3"),
+    @("python"),
+    @("$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"),
+    @("$env:LOCALAPPDATA\Programs\Python\Python310\python.exe"),
+    @("$env:LOCALAPPDATA\Programs\Python\Python39\python.exe")
+  )
+
+  foreach ($candidate in $candidates) {
+    if (Test-CommandInvocation -CommandParts $candidate) {
+      return ,$candidate
+    }
   }
 
   throw "Python 3 was not found in PATH. Install Python 3.9-3.11 and enable 'Add python.exe to PATH'."
