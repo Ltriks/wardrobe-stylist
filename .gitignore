@@ -1,5 +1,4 @@
 node_modules/
-public/uploads/*
 .next/
 dist/
 coverage/
@@ -8,3 +7,18 @@ coverage/
 tsconfig.tsbuildinfo
 data/
 
+# Local env and secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Python virtualenvs used for local tooling (e.g. rembg)
+.venv-rembg/
+
+# Local SQLite database files
+*.db
+prisma/*.db
+
+# User-generated uploads (runtime creates subfolders via `ensureWardrobeAssetDirs`)
+public/uploads/**
+!public/uploads/.gitkeep
