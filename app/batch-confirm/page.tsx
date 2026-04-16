@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
 import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
 
@@ -23,29 +23,45 @@ const SEASONS: { value: Season; label: string }[] = [
 
 export default function BatchConfirmPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [batchId, setBatchId] = useState<string | undefined>(undefined);
+  const batchId = searchParams.get('batchId') || undefined;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const nextBatchId = params.get('batchId') || undefined;
-    setBatchId(nextBatchId);
-  }, []);
-
-  useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      if (!batchId) {
+        if (!cancelled) {
+          setPendingItems([]);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
       try {
         const items = await fetchPendingItems(batchId);
-        setPendingItems(items);
+        if (!cancelled) {
+          setPendingItems(items);
+        }
       } catch (error) {
-        console.error('Failed to load pending items:', error);
+        if (!cancelled) {
+          console.error('Failed to load pending items:', error);
+          setPendingItems([]);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [batchId]);
 
   useEffect(() => {
@@ -121,7 +137,9 @@ export default function BatchConfirmPage() {
       await createItemApi(formData);
     }
 
-    await clearPendingBatchApi(batchId);
+    if (batchId) {
+      await clearPendingBatchApi(batchId);
+    }
     // Navigate back to clothes list
     router.push('/');
   };

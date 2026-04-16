@@ -69,11 +69,11 @@ if (!globalForBoardQueue.wardrobeBoardJobs) {
 function getCategoryScale(category: Category, aspectRatio: number) {
   switch (category) {
     case 'top':
-      return aspectRatio > 1.25 ? 1.62 : 1.36;
+      return aspectRatio > 1.25 ? 1.32 : 1.18;
     case 'outerwear':
-      return aspectRatio > 1.2 ? 1.42 : 1.26;
+      return aspectRatio > 1.2 ? 1.24 : 1.14;
     case 'bottom':
-      return 0.94;
+      return 1.04;
     case 'shoes':
       return 1;
     case 'accessory':
@@ -108,13 +108,13 @@ function inferRole(item: BoardItemInput): BoardRole {
 
 function getRoleScale(role: BoardRole, category: Category, aspectRatio: number) {
   if (role === 'primaryTop') {
-    return aspectRatio > 1.25 ? 1.78 : 1.48;
+    return aspectRatio > 1.25 ? 1.36 : 1.2;
   }
   if (role === 'outerLayer') {
-    return aspectRatio > 1.2 ? 1.52 : 1.34;
+    return aspectRatio > 1.2 ? 1.26 : 1.16;
   }
   if (role === 'bottomAnchor') {
-    return 0.84;
+    return 0.98;
   }
   if (role === 'shoeAnchor') {
     return 1;
@@ -172,9 +172,9 @@ function getBoardPlan(items: BoardItemInput[]): BoardPlan {
     roles.set(topItem.id, inferRole(topItem));
     roles.set(first(byCategory.bottom)!.id, 'bottomAnchor');
     roles.set(first(byCategory.shoes)!.id, 'shoeAnchor');
-    slots.set(topItem.id, { left: 250, top: 100, width: 520, height: 620 });
-    slots.set(first(byCategory.bottom)!.id, { left: 390, top: 500, width: 360, height: 620 });
-    slots.set(first(byCategory.shoes)!.id, { left: 450, top: 1030, width: 340, height: 240 });
+    slots.set(topItem.id, { left: 290, top: 110, width: 430, height: 520 });
+    slots.set(first(byCategory.bottom)!.id, { left: 370, top: 450, width: 420, height: 700 });
+    slots.set(first(byCategory.shoes)!.id, { left: 455, top: 1045, width: 340, height: 240 });
     return { slots, roles };
   }
 
@@ -199,30 +199,30 @@ function getBoardPlan(items: BoardItemInput[]): BoardPlan {
     roles.set(first(byCategory.outerwear)!.id, 'outerLayer');
     roles.set(first(byCategory.bottom)!.id, 'bottomAnchor');
     roles.set(first(byCategory.shoes)!.id, 'shoeAnchor');
-    slots.set(first(byCategory.outerwear)!.id, { left: 250, top: 100, width: 520, height: 620 });
-    slots.set(first(byCategory.bottom)!.id, { left: 390, top: 500, width: 360, height: 620 });
-    slots.set(first(byCategory.shoes)!.id, { left: 450, top: 1030, width: 340, height: 240 });
+    slots.set(first(byCategory.outerwear)!.id, { left: 290, top: 110, width: 430, height: 520 });
+    slots.set(first(byCategory.bottom)!.id, { left: 370, top: 450, width: 420, height: 700 });
+    slots.set(first(byCategory.shoes)!.id, { left: 455, top: 1045, width: 340, height: 240 });
     return { slots, roles };
   }
 
   let topCursor = 70;
   byCategory.top.forEach(item => {
     roles.set(item.id, inferRole(item));
-    slots.set(item.id, { left: topCursor, top: 130, width: 340, height: 450 });
+    slots.set(item.id, { left: topCursor, top: 130, width: 320, height: 420 });
     topCursor += 240;
   });
 
   let outerwearCursor = 760;
   byCategory.outerwear.forEach(item => {
     roles.set(item.id, 'outerLayer');
-    slots.set(item.id, { left: outerwearCursor, top: 120, width: 320, height: 460 });
+    slots.set(item.id, { left: outerwearCursor, top: 120, width: 320, height: 420 });
     outerwearCursor += 170;
   });
 
   let bottomCursor = 250;
   byCategory.bottom.forEach(item => {
     roles.set(item.id, 'bottomAnchor');
-    slots.set(item.id, { left: bottomCursor, top: 340, width: 380, height: 670 });
+    slots.set(item.id, { left: bottomCursor, top: 340, width: 400, height: 680 });
     bottomCursor += 260;
   });
 
