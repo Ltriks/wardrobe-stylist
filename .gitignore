@@ -12,6 +12,10 @@ data/
 .env
 .env.local
 .env.*.local
+AGENTS.md
+MEMORY.md
+docs/AGENTS.md
+docs/MEMORY.md
 
 # Python virtualenvs used for local tooling (e.g. rembg)
 .venv-rembg/
