@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
 import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
@@ -21,7 +21,18 @@ const SEASONS: { value: Season; label: string }[] = [
   { value: 'winter', label: 'Winter' },
 ];
 
-export default function BatchConfirmPage() {
+function BatchConfirmPageLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-gray-300 text-5xl mb-4">...</div>
+        <p className="text-gray-600">Loading pending items...</p>
+      </div>
+    </div>
+  );
+}
+
+function BatchConfirmPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
@@ -173,14 +184,14 @@ export default function BatchConfirmPage() {
   const selectedCount = selectedIds.length;
 
   if (isLoading) {
-    return (
+    return <BatchConfirmPageLoading />; /*
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-300 text-5xl mb-4">⏳</div>
           <p className="text-gray-600">Loading pending items...</p>
         </div>
       </div>
-    );
+    ); */
   }
 
   if (pendingItems.length === 0) {
@@ -275,6 +286,14 @@ export default function BatchConfirmPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BatchConfirmPage() {
+  return (
+    <Suspense fallback={<BatchConfirmPageLoading />}>
+      <BatchConfirmPageContent />
+    </Suspense>
   );
 }
 
