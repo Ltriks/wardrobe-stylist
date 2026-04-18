@@ -114,11 +114,11 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         throw new Error(result.error || 'Upload failed');
       }
 
-      // Update form with the FULL uploaded image URL (with origin)
-      const fullUrl = window.location.origin + result.url;
+      // Keep uploaded asset URLs relative so LAN clients resolve them against
+      // whichever host they used to open the app.
       setFormData(prev => ({
         ...prev,
-        imageUrl: fullUrl,
+        imageUrl: result.url,
       }));
       setImageError(false);
     } catch (error) {

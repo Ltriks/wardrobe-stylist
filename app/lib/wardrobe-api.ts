@@ -4,9 +4,34 @@ import { ClothingItem, ClothingItemFormData, Outfit, OutfitFormData, PendingItem
 
 type JsonRecord = Record<string, unknown>;
 
+function normalizeAssetUrl(value: unknown) {
+  if (typeof value !== 'string' || !value) {
+    return value;
+  }
+
+  try {
+    const parsed = new URL(value);
+    const isLoopbackHost =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1';
+
+    if (isLoopbackHost && parsed.pathname.startsWith('/uploads/')) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
+}
+
 function parseClothingItem(item: JsonRecord): ClothingItem {
   return {
     ...(item as unknown as Omit<ClothingItem, 'createdAt' | 'updatedAt'>),
+    imageUrl: normalizeAssetUrl(item.imageUrl) as ClothingItem['imageUrl'],
+    standardizedImageUrl: normalizeAssetUrl(item.standardizedImageUrl) as ClothingItem['standardizedImageUrl'],
+    cutoutImageUrl: normalizeAssetUrl(item.cutoutImageUrl) as ClothingItem['cutoutImageUrl'],
     season: Array.isArray(item.season) ? (item.season as ClothingItem['season']) : [],
     createdAt: new Date(String(item.createdAt)),
     updatedAt: new Date(String(item.updatedAt)),
@@ -16,6 +41,8 @@ function parseClothingItem(item: JsonRecord): ClothingItem {
 function parseOutfit(outfit: JsonRecord): Outfit {
   return {
     ...(outfit as unknown as Omit<Outfit, 'createdAt' | 'updatedAt'>),
+    boardImageUrl: normalizeAssetUrl(outfit.boardImageUrl) as Outfit['boardImageUrl'],
+    tryOnImageUrl: normalizeAssetUrl(outfit.tryOnImageUrl) as Outfit['tryOnImageUrl'],
     season: Array.isArray(outfit.season) ? (outfit.season as Outfit['season']) : [],
     items: Array.isArray(outfit.items) ? (outfit.items as Outfit['items']) : [],
     createdAt: new Date(String(outfit.createdAt)),
@@ -26,6 +53,7 @@ function parseOutfit(outfit: JsonRecord): Outfit {
 function parseTemplate(template: JsonRecord): PersonalTemplate {
   return {
     ...(template as unknown as Omit<PersonalTemplate, 'createdAt' | 'updatedAt'>),
+    imageUrl: normalizeAssetUrl(template.imageUrl) as PersonalTemplate['imageUrl'],
     createdAt: new Date(String(template.createdAt)),
     updatedAt: new Date(String(template.updatedAt)),
   };
@@ -34,6 +62,9 @@ function parseTemplate(template: JsonRecord): PersonalTemplate {
 function parsePendingItem(item: JsonRecord): PendingItem {
   return {
     ...(item as unknown as Omit<PendingItem, 'suggestedSeason'>),
+    imageUrl: normalizeAssetUrl(item.imageUrl) as PendingItem['imageUrl'],
+    standardizedImageUrl: normalizeAssetUrl(item.standardizedImageUrl) as PendingItem['standardizedImageUrl'],
+    cutoutImageUrl: normalizeAssetUrl(item.cutoutImageUrl) as PendingItem['cutoutImageUrl'],
     suggestedSeason: Array.isArray(item.suggestedSeason) ? (item.suggestedSeason as PendingItem['suggestedSeason']) : [],
   };
 }

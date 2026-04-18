@@ -237,7 +237,7 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
       throw new Error(result.error || 'Garment processing failed');
     }
 
-    return window.location.origin + result.url;
+    return result.url;
   };
 
   const loadImageForAnalysis = async (...candidates: Array<string | undefined>): Promise<HTMLImageElement> => {
@@ -306,7 +306,7 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
           throw new Error(uploadResult.error || 'Upload failed');
         }
 
-        const imageUrl = window.location.origin + uploadResult.url;
+        const imageUrl = uploadResult.url;
 
         // Standardize image on the server so the rest of the flow uses a cleaner garment silhouette.
         let standardizedImageUrl: string | undefined;

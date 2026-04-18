@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
 import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
@@ -20,17 +20,6 @@ const SEASONS: { value: Season; label: string }[] = [
   { value: 'autumn', label: 'Autumn' },
   { value: 'winter', label: 'Winter' },
 ];
-
-function BatchConfirmPageLoading() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-gray-300 text-5xl mb-4">...</div>
-        <p className="text-gray-600">Loading pending items...</p>
-      </div>
-    </div>
-  );
-}
 
 function BatchConfirmPageContent() {
   const router = useRouter();
@@ -184,14 +173,7 @@ function BatchConfirmPageContent() {
   const selectedCount = selectedIds.length;
 
   if (isLoading) {
-    return <BatchConfirmPageLoading />; /*
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-300 text-5xl mb-4">⏳</div>
-          <p className="text-gray-600">Loading pending items...</p>
-        </div>
-      </div>
-    ); */
+    return <BatchConfirmFallback />;
   }
 
   if (pendingItems.length === 0) {
@@ -289,9 +271,20 @@ function BatchConfirmPageContent() {
   );
 }
 
+function BatchConfirmFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-gray-300 text-5xl mb-4">⏳</div>
+        <p className="text-gray-600">Loading batch confirmation...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function BatchConfirmPage() {
   return (
-    <Suspense fallback={<BatchConfirmPageLoading />}>
+    <Suspense fallback={<BatchConfirmFallback />}>
       <BatchConfirmPageContent />
     </Suspense>
   );
