@@ -1,11 +1,11 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [string]$ServiceName = "WardrobeStylist",
   [int]$Port = 3000,
   [string]$HostName = "0.0.0.0",
   [string]$NssmPath = "nssm"
 )
+
+$ErrorActionPreference = "Stop"
 
 function Write-Step {
   param([string]$Message)

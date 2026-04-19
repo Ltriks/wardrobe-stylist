@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
   [int]$Port = 3000,
   [string]$HostName = "0.0.0.0"
 )
+
+$ErrorActionPreference = "Stop"
 
 function Write-Step {
   param([string]$Message)

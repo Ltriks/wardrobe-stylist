@@ -173,6 +173,24 @@ export default function OutfitList({
                   </div>
                 )}
 
+                {outfit.tryOnStatus === 'failed' && (
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                      Try-On Failed
+                    </p>
+                    <p className="mt-1 leading-5">
+                      {outfit.tryOnError || 'The try-on preview could not be generated this time.'}
+                    </p>
+                    <button
+                      onClick={() => void onGenerateTryOn(outfit)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
+                    >
+                      <span className="text-[11px] leading-none">↻</span>
+                      Retry Try-On
+                    </button>
+                  </div>
+                )}
+
                 {outfit.boardStatus === 'generating' && (
                   <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-500">
@@ -287,7 +305,7 @@ export default function OutfitList({
                     <button
                       onClick={async () => {
                         setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'tryOn' }));
-                        if (!openOutfit.tryOnImageUrl && openOutfit.tryOnStatus !== 'generating') {
+                        if ((!openOutfit.tryOnImageUrl || openOutfit.tryOnStatus === 'failed') && openOutfit.tryOnStatus !== 'generating') {
                           await onGenerateTryOn(openOutfit);
                         }
                       }}
@@ -301,6 +319,8 @@ export default function OutfitList({
                       <span className="text-[11px] leading-none">✦</span>
                       {openOutfit.tryOnStatus === 'generating'
                         ? 'Generating…'
+                        : openOutfit.tryOnStatus === 'failed'
+                          ? 'Retry Try-On'
                         : openCanShowTryOn
                           ? 'Try-On'
                           : hasDefaultTemplate
