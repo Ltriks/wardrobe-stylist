@@ -1,6 +1,7 @@
 param(
   [int]$Port = 3000,
-  [string]$HostName = "0.0.0.0"
+  [string]$HostName = "0.0.0.0",
+  [switch]$OpenBrowser
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +23,31 @@ function Require-Path {
   }
 }
 
+function Start-BrowserWhenReady {
+  param([string]$Url)
+
+  return Start-Job -ScriptBlock {
+    param($TargetUrl)
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+      try {
+        $response = Invoke-WebRequest -Uri $TargetUrl -UseBasicParsing -Method Head -TimeoutSec 3
+        if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+          Start-Process $TargetUrl
+          return
+        }
+      } catch {
+      }
+
+      Start-Sleep -Milliseconds 700
+    }
+
+    Start-Process $TargetUrl
+  } -ArgumentList $Url
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
@@ -41,4 +67,19 @@ Write-Host "URL: http://localhost:$Port"
 Write-Host "LAN URL: http://<your-windows-ip>:$Port"
 Write-Host "REMBG_PYTHON: $env:REMBG_PYTHON"
 
-& npm run start
+$browserJob = $null
+$browserUrl = "http://localhost:$Port"
+
+if ($OpenBrowser) {
+  Write-Step "The browser will open automatically when the app is ready"
+  $browserJob = Start-BrowserWhenReady -Url $browserUrl
+}
+
+try {
+  & npm run start
+} finally {
+  if ($browserJob) {
+    Stop-Job -Job $browserJob -ErrorAction SilentlyContinue | Out-Null
+    Remove-Job -Job $browserJob -Force -ErrorAction SilentlyContinue | Out-Null
+  }
+}
