@@ -40,6 +40,14 @@ Open **AI 设置** from the home page (or `/settings`) to configure the try-on A
 
 Page settings are stored server-side in `data/ai-settings.json` (ignored by Git, owner-only file permissions on Unix). Stored keys are never returned by the settings API. `.env.local` remains the fallback and is not modified. Use only trusted DashScope-compatible endpoints: try-on requests send the key and reference images to the configured endpoint. The app is intended for trusted local use; it has no user authentication.
 
+### Family wardrobes
+
+Use **成员衣柜** at the top of the home page to switch wardrobes, **添加成员** to create an empty wardrobe, and **改名** to name a wardrobe (for example, 儿子 or 妈妈). There are no accounts or passwords. Everyone shares one SQLite database and the AI settings; clothes, outfits, personal templates, and pending uploads are organized separately for each member.
+
+The selected member is remembered for the current browser tab, including page refreshes. Switching returns to the home page and clears unsaved forms. Background board/try-on generation keeps the member who started it. Profiles are for family organization, not privacy or access control; local images remain shared files.
+
+`npm run dev`, `npm start`, and the Windows setup script automatically run the additive database upgrade. Existing data belongs to **默认衣柜**, which can be renamed. Before upgrading an existing database, a consistent SQLite backup is saved in `data/backups/`. To prepare manually (with the app stopped), run `npm run db:prepare`.
+
 ### Optional environment variables
 
 Create `.env.local` if you want AI image generation enabled:

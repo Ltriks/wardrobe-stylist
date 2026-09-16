@@ -129,6 +129,7 @@ Write-Step "Generating Prisma client"
 Run-Command -FilePath "npx" -Arguments @("prisma", "generate")
 
 Write-Step "Applying Prisma schema"
+Run-Command -FilePath "npm" -Arguments @("run", "db:prepare")
 Run-Command -FilePath "npx" -Arguments @("prisma", "db", "push")
 
 Write-Step "Building production bundle"

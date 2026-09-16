@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from './db';
+import { currentProfileId } from './profile-context';
 import {
   ClothingItem,
   ClothingItemFormData,
@@ -182,6 +183,7 @@ function mapPendingItem(record: {
 
 export async function listClothingItems(): Promise<ClothingItem[]> {
   const items = await prisma.clothingItem.findMany({
+    where: { profileId: currentProfileId() },
     orderBy: {
       createdAt: 'desc',
     },
@@ -193,6 +195,7 @@ export async function listClothingItems(): Promise<ClothingItem[]> {
 export async function createClothingItem(data: ClothingItemFormData): Promise<ClothingItem> {
   const item = await prisma.clothingItem.create({
     data: {
+      profileId: currentProfileId(),
       name: data.name,
       category: data.category,
       color: data.color,
@@ -208,11 +211,11 @@ export async function createClothingItem(data: ClothingItemFormData): Promise<Cl
 }
 
 export async function updateClothingItem(id: string, data: Partial<ClothingItemFormData>): Promise<ClothingItem | null> {
-  const existing = await prisma.clothingItem.findUnique({ where: { id } });
+  const existing = await prisma.clothingItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return null;
 
   const item = await prisma.clothingItem.update({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     data: {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
@@ -229,15 +232,16 @@ export async function updateClothingItem(id: string, data: Partial<ClothingItemF
 }
 
 export async function removeClothingItem(id: string): Promise<boolean> {
-  const existing = await prisma.clothingItem.findUnique({ where: { id } });
+  const existing = await prisma.clothingItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return false;
 
-  await prisma.clothingItem.delete({ where: { id } });
+  await prisma.clothingItem.delete({ where: { id, profileId: currentProfileId() } });
   return true;
 }
 
 export async function listOutfits(): Promise<Outfit[]> {
   const outfits = await prisma.outfit.findMany({
+    where: { profileId: currentProfileId() },
     include: outfitInclude,
     orderBy: {
       createdAt: 'desc',
@@ -249,16 +253,29 @@ export async function listOutfits(): Promise<Outfit[]> {
 
 export async function getOutfitRecord(id: string): Promise<Outfit | null> {
   const outfit = await prisma.outfit.findUnique({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     include: outfitInclude,
   });
 
   return outfit ? mapOutfit(outfit) : null;
 }
 
+async function validateOutfitItems(itemIds: string[]) {
+  if (!Array.isArray(itemIds) || itemIds.some(id => typeof id !== 'string')) {
+    throw new Error('请选择有效的衣物。');
+  }
+  const uniqueIds = Array.from(new Set(itemIds));
+  const count = await prisma.clothingItem.count({
+    where: { id: { in: uniqueIds }, profileId: currentProfileId() },
+  });
+  if (count !== uniqueIds.length) throw new Error('搭配中包含不属于当前成员的衣物。');
+}
+
 export async function createOutfitRecord(data: OutfitFormData): Promise<Outfit> {
+  await validateOutfitItems(data.itemIds);
   const outfit = await prisma.outfit.create({
     data: {
+      profileId: currentProfileId(),
       name: data.name,
       boardImageUrl: data.boardImageUrl,
       boardStatus: data.boardStatus ?? (data.boardImageUrl ? 'success' : 'idle'),
@@ -285,11 +302,13 @@ export async function createOutfitRecord(data: OutfitFormData): Promise<Outfit> 
 
 export async function updateOutfitRecord(id: string, data: Partial<OutfitFormData>): Promise<Outfit | null> {
   const existing = await prisma.outfit.findUnique({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     include: outfitInclude,
   });
 
   if (!existing) return null;
+
+  if (data.itemIds !== undefined) await validateOutfitItems(data.itemIds);
 
   const existingAdjustmentMap = new Map(
     existing.items.map(item => [
@@ -315,7 +334,7 @@ export async function updateOutfitRecord(id: string, data: Partial<OutfitFormDat
     }
 
     await tx.outfit.update({
-      where: { id },
+      where: { id, profileId: currentProfileId() },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.boardImageUrl !== undefined ? { boardImageUrl: data.boardImageUrl } : {}),
@@ -355,7 +374,7 @@ export async function updateOutfitRecord(id: string, data: Partial<OutfitFormDat
     }
 
     return tx.outfit.findUniqueOrThrow({
-      where: { id },
+      where: { id, profileId: currentProfileId() },
       include: outfitInclude,
     });
   });
@@ -364,10 +383,10 @@ export async function updateOutfitRecord(id: string, data: Partial<OutfitFormDat
 }
 
 export async function removeOutfit(id: string): Promise<boolean> {
-  const existing = await prisma.outfit.findUnique({ where: { id } });
+  const existing = await prisma.outfit.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return false;
 
-  await prisma.outfit.delete({ where: { id } });
+  await prisma.outfit.delete({ where: { id, profileId: currentProfileId() } });
   return true;
 }
 
@@ -381,14 +400,14 @@ export async function updateOutfitTryOnState(
   },
 ): Promise<Outfit | null> {
   const existing = await prisma.outfit.findUnique({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     include: outfitInclude,
   });
 
   if (!existing) return null;
 
   const outfit = await prisma.outfit.update({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     data: {
       ...(data.tryOnImageUrl !== undefined ? { tryOnImageUrl: data.tryOnImageUrl } : {}),
       ...(data.tryOnStatus !== undefined ? { tryOnStatus: data.tryOnStatus } : {}),
@@ -410,14 +429,14 @@ export async function updateOutfitBoardState(
   },
 ): Promise<Outfit | null> {
   const existing = await prisma.outfit.findUnique({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     include: outfitInclude,
   });
 
   if (!existing) return null;
 
   const outfit = await prisma.outfit.update({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     data: {
       ...(data.boardImageUrl !== undefined ? { boardImageUrl: data.boardImageUrl } : {}),
       ...(data.boardStatus !== undefined ? { boardStatus: data.boardStatus } : {}),
@@ -439,6 +458,7 @@ export async function updateOutfitBoardState(
 
 export async function listTemplates(): Promise<PersonalTemplate[]> {
   const templates = await prisma.personalTemplate.findMany({
+    where: { profileId: currentProfileId() },
     orderBy: [
       { isDefault: 'desc' },
       { createdAt: 'desc' },
@@ -450,7 +470,7 @@ export async function listTemplates(): Promise<PersonalTemplate[]> {
 
 export async function getDefaultTemplateRecord(): Promise<PersonalTemplate | null> {
   const template = await prisma.personalTemplate.findFirst({
-    where: { isDefault: true },
+    where: { isDefault: true, profileId: currentProfileId() },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -458,18 +478,20 @@ export async function getDefaultTemplateRecord(): Promise<PersonalTemplate | nul
 }
 
 export async function createTemplateRecord(data: { name: string; imageUrl: string; isDefault?: boolean }): Promise<PersonalTemplate> {
-  const templateCount = await prisma.personalTemplate.count();
+  const templateCount = await prisma.personalTemplate.count({ where: { profileId: currentProfileId() } });
   const shouldBeDefault = data.isDefault ?? templateCount === 0;
 
   const template = await prisma.$transaction(async tx => {
     if (shouldBeDefault) {
       await tx.personalTemplate.updateMany({
+        where: { profileId: currentProfileId() },
         data: { isDefault: false },
       });
     }
 
     return tx.personalTemplate.create({
       data: {
+        profileId: currentProfileId(),
         name: data.name,
         imageUrl: data.imageUrl,
         isDefault: shouldBeDefault,
@@ -481,16 +503,17 @@ export async function createTemplateRecord(data: { name: string; imageUrl: strin
 }
 
 export async function setDefaultTemplateRecord(id: string): Promise<PersonalTemplate | null> {
-  const existing = await prisma.personalTemplate.findUnique({ where: { id } });
+  const existing = await prisma.personalTemplate.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return null;
 
   const template = await prisma.$transaction(async tx => {
     await tx.personalTemplate.updateMany({
+      where: { profileId: currentProfileId() },
       data: { isDefault: false },
     });
 
     return tx.personalTemplate.update({
-      where: { id },
+      where: { id, profileId: currentProfileId() },
       data: { isDefault: true },
     });
   });
@@ -499,20 +522,21 @@ export async function setDefaultTemplateRecord(id: string): Promise<PersonalTemp
 }
 
 export async function removeTemplate(id: string): Promise<boolean> {
-  const existing = await prisma.personalTemplate.findUnique({ where: { id } });
+  const existing = await prisma.personalTemplate.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return false;
 
   await prisma.$transaction(async tx => {
-    await tx.personalTemplate.delete({ where: { id } });
+    await tx.personalTemplate.delete({ where: { id, profileId: currentProfileId() } });
 
     if (existing.isDefault) {
       const nextTemplate = await tx.personalTemplate.findFirst({
+        where: { profileId: currentProfileId() },
         orderBy: { createdAt: 'asc' },
       });
 
       if (nextTemplate) {
         await tx.personalTemplate.update({
-          where: { id: nextTemplate.id },
+          where: { id: nextTemplate.id, profileId: currentProfileId() },
           data: { isDefault: true },
         });
       }
@@ -524,7 +548,7 @@ export async function removeTemplate(id: string): Promise<boolean> {
 
 export async function listPendingUploadItems(batchId?: string): Promise<PendingItem[]> {
   const items = await prisma.pendingUploadItem.findMany({
-    where: batchId ? { batchId } : undefined,
+    where: { profileId: currentProfileId(), ...(batchId ? { batchId } : {}) },
     orderBy: [
       { createdAt: 'asc' },
       { id: 'asc' },
@@ -539,6 +563,7 @@ export async function createPendingUploadBatch(items: PendingItem[], batchId?: s
 
   await prisma.pendingUploadItem.createMany({
     data: items.map(item => ({
+      profileId: currentProfileId(),
       id: item.id,
       batchId: resolvedBatchId,
       imageUrl: item.imageUrl,
@@ -566,11 +591,11 @@ export async function createPendingUploadBatch(items: PendingItem[], batchId?: s
 }
 
 export async function updatePendingUploadItem(id: string, updates: Partial<PendingItem>): Promise<PendingItem | null> {
-  const existing = await prisma.pendingUploadItem.findUnique({ where: { id } });
+  const existing = await prisma.pendingUploadItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return null;
 
   const item = await prisma.pendingUploadItem.update({
-    where: { id },
+    where: { id, profileId: currentProfileId() },
     data: {
       ...(updates.imageUrl !== undefined ? { imageUrl: updates.imageUrl } : {}),
       ...(updates.standardizedImageUrl !== undefined ? { standardizedImageUrl: updates.standardizedImageUrl } : {}),
@@ -594,15 +619,15 @@ export async function updatePendingUploadItem(id: string, updates: Partial<Pendi
 }
 
 export async function removePendingUploadItem(id: string): Promise<boolean> {
-  const existing = await prisma.pendingUploadItem.findUnique({ where: { id } });
+  const existing = await prisma.pendingUploadItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return false;
 
-  await prisma.pendingUploadItem.delete({ where: { id } });
+  await prisma.pendingUploadItem.delete({ where: { id, profileId: currentProfileId() } });
   return true;
 }
 
 export async function clearPendingUploadBatch(batchId?: string): Promise<void> {
   await prisma.pendingUploadItem.deleteMany({
-    where: batchId ? { batchId } : undefined,
+    where: { profileId: currentProfileId(), ...(batchId ? { batchId } : {}) },
   });
 }

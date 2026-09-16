@@ -32,7 +32,7 @@ test.describe('Wardrobe Stylist smoke', () => {
 
     await expect(page.getByText(uniqueName)).toBeVisible();
 
-    const categoryFilter = page.locator('select').nth(0);
+    const categoryFilter = page.locator('main select').nth(0);
     await categoryFilter.selectOption('top');
     await expect(page.getByText(uniqueName)).toBeVisible();
 

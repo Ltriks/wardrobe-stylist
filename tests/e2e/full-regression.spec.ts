@@ -176,7 +176,7 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
     await expect(page.locator('[title]').first()).toBeVisible();
 
     const nameInputs = page.locator('input[type="text"]:not([placeholder="Color"])');
-    const categorySelects = page.locator('select');
+    const categorySelects = page.locator('select:not(#family-profile)');
     const colorInputs = page.locator('input[placeholder="Color"]');
 
     await nameInputs.nth(0).fill(state.batchTopName);

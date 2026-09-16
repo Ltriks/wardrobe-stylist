@@ -1,10 +1,11 @@
+import { withProfile } from '@/lib/profiles';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { queueBoardJob } from '@/lib/board-service';
 
 export const runtime = 'nodejs';
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json();
     const outfitId = typeof body?.outfitId === 'string' ? body.outfitId : '';
@@ -26,3 +27,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';
+export const POST = withProfile(handlePOST);

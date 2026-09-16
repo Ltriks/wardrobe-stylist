@@ -1,5 +1,7 @@
 'use client';
 
+import { wardrobeFetch } from './profile-client';
+
 import { ClothingItem, ClothingItemFormData, Outfit, OutfitFormData, PendingItem, PersonalTemplate } from '@/app/types';
 
 type JsonRecord = Record<string, unknown>;
@@ -100,13 +102,13 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchItems(): Promise<ClothingItem[]> {
-  const data = await parseJsonResponse<JsonRecord[]>(await fetch('/api/items'));
+  const data = await parseJsonResponse<JsonRecord[]>(await wardrobeFetch('/api/items'));
   return data.map(parseClothingItem);
 }
 
 export async function createItemApi(payload: ClothingItemFormData): Promise<ClothingItem> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch('/api/items', {
+    await wardrobeFetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -118,7 +120,7 @@ export async function createItemApi(payload: ClothingItemFormData): Promise<Clot
 
 export async function updateItemApi(id: string, payload: Partial<ClothingItemFormData>): Promise<ClothingItem> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch(`/api/items/${id}`, {
+    await wardrobeFetch(`/api/items/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -129,17 +131,17 @@ export async function updateItemApi(id: string, payload: Partial<ClothingItemFor
 }
 
 export async function deleteItemApi(id: string): Promise<void> {
-  await parseJsonResponse(await fetch(`/api/items/${id}`, { method: 'DELETE' }));
+  await parseJsonResponse(await wardrobeFetch(`/api/items/${id}`, { method: 'DELETE' }));
 }
 
 export async function fetchOutfits(): Promise<Outfit[]> {
-  const data = await parseJsonResponse<JsonRecord[]>(await fetch('/api/outfits'));
+  const data = await parseJsonResponse<JsonRecord[]>(await wardrobeFetch('/api/outfits'));
   return data.map(parseOutfit);
 }
 
 export async function createOutfitApi(payload: OutfitFormData): Promise<Outfit> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch('/api/outfits', {
+    await wardrobeFetch('/api/outfits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -151,7 +153,7 @@ export async function createOutfitApi(payload: OutfitFormData): Promise<Outfit> 
 
 export async function updateOutfitApi(id: string, payload: Partial<OutfitFormData>): Promise<Outfit> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch(`/api/outfits/${id}`, {
+    await wardrobeFetch(`/api/outfits/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -162,12 +164,12 @@ export async function updateOutfitApi(id: string, payload: Partial<OutfitFormDat
 }
 
 export async function deleteOutfitApi(id: string): Promise<void> {
-  await parseJsonResponse(await fetch(`/api/outfits/${id}`, { method: 'DELETE' }));
+  await parseJsonResponse(await wardrobeFetch(`/api/outfits/${id}`, { method: 'DELETE' }));
 }
 
 export async function generateBoardApi(outfitId: string): Promise<Outfit> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch('/api/generate-board', {
+    await wardrobeFetch('/api/generate-board', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ outfitId }),
@@ -179,7 +181,7 @@ export async function generateBoardApi(outfitId: string): Promise<Outfit> {
 
 export async function generateTryOnApi(outfitId: string): Promise<Outfit> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch('/api/generate-tryon', {
+    await wardrobeFetch('/api/generate-tryon', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ outfitId }),
@@ -190,13 +192,13 @@ export async function generateTryOnApi(outfitId: string): Promise<Outfit> {
 }
 
 export async function fetchTemplates(): Promise<PersonalTemplate[]> {
-  const data = await parseJsonResponse<JsonRecord[]>(await fetch('/api/templates'));
+  const data = await parseJsonResponse<JsonRecord[]>(await wardrobeFetch('/api/templates'));
   return data.map(parseTemplate);
 }
 
 export async function createTemplateApi(payload: { name: string; imageUrl: string; isDefault?: boolean }): Promise<PersonalTemplate> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch('/api/templates', {
+    await wardrobeFetch('/api/templates', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -208,7 +210,7 @@ export async function createTemplateApi(payload: { name: string; imageUrl: strin
 
 export async function setDefaultTemplateApi(id: string): Promise<PersonalTemplate> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch(`/api/templates/${id}`, {
+    await wardrobeFetch(`/api/templates/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isDefault: true }),
@@ -219,18 +221,18 @@ export async function setDefaultTemplateApi(id: string): Promise<PersonalTemplat
 }
 
 export async function deleteTemplateApi(id: string): Promise<void> {
-  await parseJsonResponse(await fetch(`/api/templates/${id}`, { method: 'DELETE' }));
+  await parseJsonResponse(await wardrobeFetch(`/api/templates/${id}`, { method: 'DELETE' }));
 }
 
 export async function fetchPendingItems(batchId?: string): Promise<PendingItem[]> {
   const query = batchId ? `?batchId=${encodeURIComponent(batchId)}` : '';
-  const data = await parseJsonResponse<JsonRecord[]>(await fetch(`/api/pending-items${query}`));
+  const data = await parseJsonResponse<JsonRecord[]>(await wardrobeFetch(`/api/pending-items${query}`));
   return data.map(parsePendingItem);
 }
 
 export async function createPendingBatchApi(items: PendingItem[]): Promise<{ batchId: string; items: PendingItem[] }> {
   const data = await parseJsonResponse<{ batchId: string; items: JsonRecord[] }>(
-    await fetch('/api/pending-items', {
+    await wardrobeFetch('/api/pending-items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items }),
@@ -245,7 +247,7 @@ export async function createPendingBatchApi(items: PendingItem[]): Promise<{ bat
 
 export async function updatePendingItemApi(id: string, payload: Partial<PendingItem>): Promise<PendingItem> {
   const data = await parseJsonResponse<JsonRecord>(
-    await fetch(`/api/pending-items/${id}`, {
+    await wardrobeFetch(`/api/pending-items/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -256,10 +258,10 @@ export async function updatePendingItemApi(id: string, payload: Partial<PendingI
 }
 
 export async function deletePendingItemApi(id: string): Promise<void> {
-  await parseJsonResponse(await fetch(`/api/pending-items/${id}`, { method: 'DELETE' }));
+  await parseJsonResponse(await wardrobeFetch(`/api/pending-items/${id}`, { method: 'DELETE' }));
 }
 
 export async function clearPendingBatchApi(batchId?: string): Promise<void> {
   const query = batchId ? `?batchId=${encodeURIComponent(batchId)}` : '';
-  await parseJsonResponse(await fetch(`/api/pending-items${query}`, { method: 'DELETE' }));
+  await parseJsonResponse(await wardrobeFetch(`/api/pending-items${query}`, { method: 'DELETE' }));
 }

@@ -79,7 +79,7 @@ export default function SettingsPage() {
         <header className="mb-7 mt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Wardrobe Stylist</p>
           <h1 className="mt-3 text-3xl font-semibold text-slate-900">AI 设置</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">配置试穿图片生成服务。保存后，下次生成试穿图会自动使用新配置。</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600">全家共用的试穿图片生成服务。保存后，所有成员下次生成试穿图都会使用新配置。</p>
         </header>
 
         {message && <div role={message.error ? 'alert' : 'status'} className={`mb-5 rounded-xl border px-4 py-3 text-sm ${message.error ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{message.text}</div>}

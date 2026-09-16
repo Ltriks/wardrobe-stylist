@@ -1,9 +1,10 @@
+import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
 import { createOutfitRecord, listOutfits } from '@/lib/wardrobe-store';
 import { OutfitFormData } from '@/app/types';
 
-export async function GET() {
+async function handleGET() {
   try {
     const outfits = await listOutfits();
     return NextResponse.json(outfits);
@@ -16,7 +17,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const payload = (await request.json()) as OutfitFormData;
     const outfit = await createOutfitRecord(payload);
@@ -29,3 +30,7 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';
+export const GET = withProfile(handleGET);
+export const POST = withProfile(handlePOST);

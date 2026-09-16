@@ -1,3 +1,4 @@
+import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
 import { queueTryOnJob } from '@/lib/tryon-service';
@@ -8,7 +9,7 @@ type GenerateTryOnRequest = {
   outfitId?: string;
 };
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const payload = (await request.json()) as GenerateTryOnRequest;
   const outfitId = payload.outfitId?.trim();
 
@@ -29,3 +30,6 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';
+export const POST = withProfile(handlePOST);

@@ -1,9 +1,10 @@
+import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
 import { removePendingUploadItem, updatePendingUploadItem } from '@/lib/wardrobe-store';
 import { PendingItem } from '@/app/types';
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
@@ -17,7 +18,7 @@ export async function PATCH(
   return NextResponse.json(item);
 }
 
-export async function DELETE(
+async function handleDELETE(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
@@ -29,3 +30,7 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+export const dynamic = 'force-dynamic';
+export const PATCH = withProfile(handlePATCH);
+export const DELETE = withProfile(handleDELETE);

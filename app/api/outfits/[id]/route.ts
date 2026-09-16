@@ -1,9 +1,10 @@
+import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
 import { removeOutfit, updateOutfitRecord } from '@/lib/wardrobe-store';
 import { OutfitFormData } from '@/app/types';
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
@@ -26,7 +27,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function handleDELETE(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
@@ -47,3 +48,7 @@ export async function DELETE(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';
+export const PATCH = withProfile(handlePATCH);
+export const DELETE = withProfile(handleDELETE);

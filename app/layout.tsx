@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ProfileSwitcher from './components/ProfileSwitcher';
 
 export const metadata: Metadata = {
   title: "Wardrobe Stylist",
@@ -19,7 +20,7 @@ export default function RootLayout({
         padding: 0,
         backgroundColor: '#ffffff',
         color: '#1f2937',
-      }}>{children}</body>
+      }}><ProfileSwitcher />{children}</body>
     </html>
   );
 }

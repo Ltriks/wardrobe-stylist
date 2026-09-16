@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run db:prepare",
     "dev": "next dev",
     "build": "next build",
+    "prestart": "npm run db:prepare",
     "start": "next start",
+    "db:prepare": "node scripts/prepare-profiles.mjs",
     "lint": "next lint",
     "reset:local": "node scripts/reset-local-data.mjs",
     "test:e2e": "playwright test",

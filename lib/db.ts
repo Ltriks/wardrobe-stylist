@@ -7,6 +7,7 @@ const globalForPrisma = globalThis as typeof globalThis & {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    ...(process.env.WARDROBE_DATABASE_URL ? { datasourceUrl: process.env.WARDROBE_DATABASE_URL } : {}),
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 

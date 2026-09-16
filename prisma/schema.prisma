@@ -9,6 +9,7 @@ generator client {
 
 model ClothingItem {
   id                   String       @id @default(cuid())
+  profileId            String       @default("default")
   name                 String
   category             String
   color                String
@@ -20,10 +21,13 @@ model ClothingItem {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   outfitItems          OutfitItem[]
+
+  @@index([profileId])
 }
 
 model Outfit {
   id            String       @id @default(cuid())
+  profileId     String       @default("default")
   name          String
   boardImageUrl String?
   boardStatus   String       @default("idle")
@@ -38,6 +42,8 @@ model Outfit {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   items         OutfitItem[]
+
+  @@index([profileId])
 }
 
 model OutfitItem {
@@ -54,15 +60,19 @@ model OutfitItem {
 
 model PersonalTemplate {
   id        String   @id @default(cuid())
+  profileId String   @default("default")
   name      String
   imageUrl  String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }
 
 model PendingUploadItem {
   id                   String   @id
+  profileId            String   @default("default")
   batchId              String
   imageUrl             String
   standardizedImageUrl String?
@@ -83,4 +93,11 @@ model PendingUploadItem {
   updatedAt            DateTime @updatedAt
 
   @@index([batchId])
+  @@index([profileId])
+}
+
+model WardrobeProfile {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
