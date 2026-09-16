@@ -34,6 +34,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### AI settings page
+
+Open **AI 设置** from the home page (or `/settings`) to configure the try-on API key, model, and full HTTPS endpoint. Saving takes effect for the next generation without restarting. A blank key preserves the current key. **恢复环境配置** removes page overrides and restores environment/default settings.
+
+Page settings are stored server-side in `data/ai-settings.json` (ignored by Git, owner-only file permissions on Unix). Stored keys are never returned by the settings API. `.env.local` remains the fallback and is not modified. Use only trusted DashScope-compatible endpoints: try-on requests send the key and reference images to the configured endpoint. The app is intended for trusted local use; it has no user authentication.
+
 ### Optional environment variables
 
 Create `.env.local` if you want AI image generation enabled:

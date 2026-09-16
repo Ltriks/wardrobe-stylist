@@ -1,8 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
-
-const DEFAULT_BASE_URL = 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-const DEFAULT_MODEL = 'qwen-image-2.0-pro';
+import { readAiSettings } from './ai-settings';
 
 function detectMimeType(filePath: string) {
   const extension = extname(filePath).toLowerCase();
@@ -56,13 +54,10 @@ export async function generateTryOnImage({
   boardImagePath,
   prompt = buildTryOnPrompt(),
 }: GenerateTryOnOptions): Promise<{ imageUrl: string; prompt: string }> {
-  const apiKey = process.env.DASHSCOPE_API_KEY ?? process.env.MODEL_STUDIO_API_KEY;
+  const { apiKey, baseUrl, model } = await readAiSettings();
   if (!apiKey) {
-    throw new Error('Missing DASHSCOPE_API_KEY or MODEL_STUDIO_API_KEY for try-on generation.');
+    throw new Error('请先在 AI 设置页面配置 API Key。');
   }
-
-  const baseUrl = process.env.DASHSCOPE_IMAGE_BASE_URL ?? DEFAULT_BASE_URL;
-  const model = process.env.DASHSCOPE_IMAGE_MODEL ?? DEFAULT_MODEL;
 
   const [templateImage, boardImage] = await Promise.all([
     encodeImageAsDataUrl(templateImagePath),
