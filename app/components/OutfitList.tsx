@@ -1,6 +1,6 @@
 'use client';
 
-import { categoryLabels, seasonLabels, statusLabels } from '../lib/display-labels';
+import { categoryLabels, seasonLabels } from '../lib/display-labels';
 
 import { useState } from 'react';
 import { Outfit, ClothingItem } from '../types';
@@ -27,39 +27,8 @@ export default function OutfitList({
   onGenerateTryOn,
 }: OutfitListProps) {
   const [openOutfitId, setOpenOutfitId] = useState<string | null>(null);
+  const [cardPreviewModes, setCardPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
   const [detailPreviewModes, setDetailPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
-  const [hoveredOutfitId, setHoveredOutfitId] = useState<string | null>(null);
-
-  const renderStatusChips = (outfit: Outfit) => (
-    <>
-      <span
-        className={`rounded-full border px-2.5 py-1 text-[11px] shadow-sm ${
-          outfit.boardStatus === 'success'
-            ? 'border-gray-200 bg-white text-gray-700'
-            : outfit.boardStatus === 'generating'
-              ? 'border-amber-100 bg-amber-50 text-amber-700'
-              : outfit.boardStatus === 'failed'
-                ? 'border-rose-100 bg-rose-50 text-rose-700'
-                : 'border-gray-200 bg-white text-gray-600'
-        }`}
-      >
-        搭配图 {statusLabels[outfit.boardStatus || (outfit.boardImageUrl ? 'success' : 'idle')]}
-      </span>
-      <span
-        className={`rounded-full border px-2.5 py-1 text-[11px] shadow-sm ${
-          outfit.tryOnStatus === 'success'
-            ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
-            : outfit.tryOnStatus === 'generating'
-              ? 'border-indigo-100 bg-indigo-50 text-indigo-700'
-              : outfit.tryOnStatus === 'failed'
-                ? 'border-rose-100 bg-rose-50 text-rose-700'
-                : 'border-gray-200 bg-white text-gray-600'
-        }`}
-      >
-        试穿 {statusLabels[outfit.tryOnStatus || 'idle']}
-      </span>
-    </>
-  );
 
   if (outfits.length === 0) {
     return (
@@ -80,28 +49,24 @@ export default function OutfitList({
     <>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {outfits.map(outfit => {
-        const canShowTryOn = Boolean(outfit.tryOnImageUrl || outfit.tryOnStatus === 'generating' || outfit.tryOnStatus === 'failed');
-        const cardPreviewMode =
-          outfit.tryOnImageUrl && hoveredOutfitId === outfit.id
-            ? 'board'
-            : outfit.tryOnImageUrl
-              ? 'tryOn'
-              : 'board';
+        const cardPreviewMode = cardPreviewModes[outfit.id] ?? (outfit.tryOnImageUrl ? 'tryOn' : 'board');
+        const pendingPreviewMode = (['board', 'tryOn'] as const).find(kind => {
+          const status = kind === 'board' ? outfit.boardStatus : outfit.tryOnStatus;
+          return status === 'failed' || status === 'generating';
+        });
 
         return (
           <div
             key={outfit.id}
-            onMouseEnter={() => setHoveredOutfitId(outfit.id)}
-            onMouseLeave={() => setHoveredOutfitId(current => (current === outfit.id ? null : current))}
             className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
           >
             <div>
               <div className="border-b border-gray-200 bg-gradient-to-b from-white to-gray-50 p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-medium leading-snug text-gray-900">{outfit.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="break-words text-base font-medium leading-snug text-gray-900">{outfit.name}</h3>
                     <p className="mt-1 text-xs text-gray-500">
-                      {outfit.items.length} 件衣物 · 搭配灵感图
+                      {outfit.items.length} 件衣物
                     </p>
                   </div>
 
@@ -126,101 +91,56 @@ export default function OutfitList({
                     outfit={outfit}
                     expanded={false}
                     mode={cardPreviewMode}
+                    onGenerate={() => cardPreviewMode === 'tryOn' ? onGenerateTryOn(outfit) : onGenerateBoard(outfit)}
+                    generateDisabledReason={cardPreviewMode === 'tryOn' && !hasDefaultTemplate ? '请先通过「人物照片」上传照片并设为默认。' : undefined}
                     actionSlot={
-                      <div className="flex flex-wrap items-center gap-2">
-                        {outfit.tryOnImageUrl && (
+                      <div role="group" aria-label={`${outfit.name} 预览切换`} className="flex rounded-lg bg-slate-100 p-1">
+                        {(['board', 'tryOn'] as const).map(mode => (
                           <button
-                            onClick={() => {
-                              setDetailPreviewModes(current => ({
-                                ...current,
-                                [outfit.id]: 'tryOn',
-                              }));
-                              setOpenOutfitId(outfit.id);
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
+                            key={mode}
+                            type="button"
+                            aria-pressed={cardPreviewMode === mode}
+                            onClick={() => setCardPreviewModes(current => ({ ...current, [outfit.id]: mode }))}
+                            className={`min-w-0 flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                              cardPreviewMode === mode
+                                ? 'bg-slate-900 text-white'
+                                : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                            }`}
                           >
-                            <span className="text-[11px] leading-none">✦</span>
-                            查看试穿
+                            {mode === 'board' ? '搭配图' : '试穿图'}
                           </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setDetailPreviewModes(current => ({
-                              ...current,
-                              [outfit.id]: current[outfit.id] ?? (outfit.tryOnImageUrl ? 'tryOn' : 'board'),
-                            }));
-                            setOpenOutfitId(outfit.id);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
-                        >
-                          <span className="text-[11px] leading-none">↗</span>
-                          查看详情
-                        </button>
+                        ))}
                       </div>
                     }
-                    statusSlot={renderStatusChips(outfit)}
                   />
                 </div>
               </div>
 
               <div className="space-y-3 p-4">
-                {outfit.tryOnStatus === 'generating' && (
-                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                      正在后台生成
+                <button
+                  onClick={() => {
+                    setDetailPreviewModes(current => ({
+                      ...current,
+                      [outfit.id]: pendingPreviewMode ?? cardPreviewMode,
+                    }));
+                    setOpenOutfitId(outfit.id);
+                  }}
+                  className="flex w-full items-center justify-between border-b border-gray-200 pb-3 text-sm font-semibold text-gray-900 transition-colors hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                >
+                  查看详情
+                  <span aria-hidden="true">↗</span>
+                </button>
+                {(['board', 'tryOn'] as const).map(kind => {
+                  const status = kind === 'board' ? outfit.boardStatus : outfit.tryOnStatus;
+                  // The visible preview already explains its own pending/error state.
+                  const imageUrl = cardPreviewMode === 'board' ? outfit.boardImageUrl : outfit.tryOnImageUrl;
+                  if ((status !== 'generating' && status !== 'failed') || (kind === cardPreviewMode && !imageUrl)) return null;
+                  return (
+                    <p key={kind} role="status" className={`text-xs ${status === 'failed' ? 'text-rose-700' : 'text-gray-600'}`}>
+                      {kind === 'board' ? '搭配图' : '试穿图'}{status === 'generating' ? '生成中，完成后自动更新' : '生成失败，可在详情中重试'}
                     </p>
-                    <p className="mt-1 leading-5">
-                      可以继续浏览或关闭详情，试穿图生成后会自动更新。
-                    </p>
-                  </div>
-                )}
-
-                {outfit.tryOnStatus === 'failed' && (
-                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                      试穿生成失败
-                    </p>
-                    <p className="mt-1 leading-5">
-                      {outfit.tryOnError || "本次试穿图生成失败，请重试。"}
-                    </p>
-                    <button
-                      onClick={() => void onGenerateTryOn(outfit)}
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
-                    >
-                      <span className="text-[11px] leading-none">↻</span>
-                      重新生成试穿
-                    </button>
-                  </div>
-                )}
-
-                {outfit.boardStatus === 'generating' && (
-                  <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-500">
-                      正在生成搭配图
-                    </p>
-                    <p className="mt-1 leading-5">
-                      搭配图正在后台生成，可以继续浏览，完成后会自动更新。
-                    </p>
-                  </div>
-                )}
-
-                {outfit.boardStatus === 'failed' && (
-                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                      搭配图生成失败
-                    </p>
-                    <p className="mt-1 leading-5">
-                      {outfit.boardError || "本次搭配图生成失败，请重试。"}
-                    </p>
-                    <button
-                      onClick={() => void onGenerateBoard(outfit)}
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
-                    >
-                      <span className="text-[11px] leading-none">↻</span>
-                      重新生成搭配图
-                    </button>
-                  </div>
-                )}
+                  );
+                })}
 
                 <div>
                   <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">衣物（{outfit.items.length}）</p>
@@ -311,7 +231,6 @@ export default function OutfitList({
                           await onGenerateTryOn(openOutfit);
                         }
                       }}
-                      disabled={openOutfit.tryOnStatus === 'generating'}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
                         (detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
                           ? 'bg-emerald-500 text-white hover:bg-emerald-600'
@@ -324,14 +243,13 @@ export default function OutfitList({
                         : openOutfit.tryOnStatus === 'failed'
                           ? "重新生成试穿"
                         : openCanShowTryOn
-                          ? "试穿"
+                          ? "试穿图"
                           : hasDefaultTemplate
                             ? "生成试穿图"
                             : "请先上传人物照片"}
                     </button>
                   </div>
                 }
-                statusSlot={renderStatusChips(openOutfit)}
               />
 
               <div className="min-h-[132px] rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -346,17 +264,6 @@ export default function OutfitList({
                     : "用搭配图查看整体配色与层次，实际穿着效果以实物为准。"}
                 </p>
               </div>
-
-              {openOutfit.tryOnStatus === 'generating' && (
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                    后台生成中
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-indigo-900">
-                    试穿图正在生成，关闭窗口后任务仍会继续，稍后回来查看即可。
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="space-y-4">

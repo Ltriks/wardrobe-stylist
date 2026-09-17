@@ -492,12 +492,6 @@ export default function Home() {
                   先组合单品，生成搭配图，再用人物照片预览试穿效果。
                 </p>
               </div>
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-                <span className="block font-medium">穿搭灵感进行中</span>
-                <span className="block mt-1 text-indigo-700">
-                  {outfits.length > 0 ? "搭配图已收藏" : "开启第一套搭配"}
-                </span>
-              </div>
             </div>
 
               <OutfitList
