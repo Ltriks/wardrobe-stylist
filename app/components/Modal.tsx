@@ -27,14 +27,16 @@ export default function Modal({ isOpen, onClose, title, children, sizeClassName 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+    <div className="modal-overlay fixed inset-0 z-50 bg-gray-900/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
       <div
-        className={`flex h-full w-full flex-col overflow-hidden bg-white shadow-xl sm:h-auto sm:max-h-[90vh] sm:rounded-xl ${sizeClassName}`}
+        role="dialog" aria-modal="true" aria-label={title}
+        className={`modal-frame flex h-full w-full flex-col overflow-hidden bg-white shadow-xl sm:h-auto sm:max-h-[90vh] sm:rounded-xl ${sizeClassName}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
+        <div className="modal-heading flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
+            type="button" aria-label="关闭弹窗"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
           >

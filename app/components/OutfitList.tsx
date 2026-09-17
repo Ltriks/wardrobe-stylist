@@ -1,5 +1,7 @@
 'use client';
 
+import { categoryLabels, seasonLabels, statusLabels } from '../lib/display-labels';
+
 import { useState } from 'react';
 import { Outfit, ClothingItem } from '../types';
 import TryOnPreview from './TryOnPreview';
@@ -41,7 +43,7 @@ export default function OutfitList({
                 : 'border-gray-200 bg-white text-gray-600'
         }`}
       >
-        Board {outfit.boardStatus || (outfit.boardImageUrl ? 'success' : 'idle')}
+        搭配图 {statusLabels[outfit.boardStatus || (outfit.boardImageUrl ? 'success' : 'idle')]}
       </span>
       <span
         className={`rounded-full border px-2.5 py-1 text-[11px] shadow-sm ${
@@ -54,7 +56,7 @@ export default function OutfitList({
                 : 'border-gray-200 bg-white text-gray-600'
         }`}
       >
-        Try-on {outfit.tryOnStatus || 'idle'}
+        试穿 {statusLabels[outfit.tryOnStatus || 'idle']}
       </span>
     </>
   );
@@ -63,8 +65,8 @@ export default function OutfitList({
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <div className="text-gray-300 text-5xl mb-4">👗</div>
-        <p className="text-gray-600 font-medium text-lg">No outfits created yet</p>
-        <p className="text-gray-400 text-sm mt-2">Create your first outfit to get started!</p>
+        <p className="text-gray-600 font-medium text-lg">你的第一套搭配，等你出场</p>
+        <p className="text-gray-400 text-sm mt-2">点击「创建搭配」，把喜欢的衣物穿在一起。</p>
       </div>
     );
   }
@@ -99,7 +101,7 @@ export default function OutfitList({
                   <div>
                     <h3 className="text-base font-medium leading-snug text-gray-900">{outfit.name}</h3>
                     <p className="mt-1 text-xs text-gray-500">
-                      {outfit.items.length} pieces · generated overview board
+                      {outfit.items.length} 件衣物 · 搭配灵感图
                     </p>
                   </div>
 
@@ -108,13 +110,13 @@ export default function OutfitList({
                       onClick={() => onEdit(outfit)}
                       className="rounded px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
                     >
-                      Edit
+                      编辑
                     </button>
                     <button
                       onClick={() => onDelete(outfit.id)}
                       className="rounded px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-800"
                     >
-                      Delete
+                      删除
                     </button>
                   </div>
                 </div>
@@ -138,7 +140,7 @@ export default function OutfitList({
                             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
                           >
                             <span className="text-[11px] leading-none">✦</span>
-                            View Try-On
+                            查看试穿
                           </button>
                         )}
                         <button
@@ -152,7 +154,7 @@ export default function OutfitList({
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
                         >
                           <span className="text-[11px] leading-none">↗</span>
-                          Inspect
+                          查看详情
                         </button>
                       </div>
                     }
@@ -165,10 +167,10 @@ export default function OutfitList({
                 {outfit.tryOnStatus === 'generating' && (
                   <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                      Generating In Background
+                      正在后台生成
                     </p>
                     <p className="mt-1 leading-5">
-                      You can keep browsing or close the detail view. We will update this outfit card when the try-on preview finishes.
+                      可以继续浏览或关闭详情，试穿图生成后会自动更新。
                     </p>
                   </div>
                 )}
@@ -176,17 +178,17 @@ export default function OutfitList({
                 {outfit.tryOnStatus === 'failed' && (
                   <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                      Try-On Failed
+                      试穿生成失败
                     </p>
                     <p className="mt-1 leading-5">
-                      {outfit.tryOnError || 'The try-on preview could not be generated this time.'}
+                      {outfit.tryOnError || "本次试穿图生成失败，请重试。"}
                     </p>
                     <button
                       onClick={() => void onGenerateTryOn(outfit)}
                       className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
                     >
                       <span className="text-[11px] leading-none">↻</span>
-                      Retry Try-On
+                      重新生成试穿
                     </button>
                   </div>
                 )}
@@ -194,10 +196,10 @@ export default function OutfitList({
                 {outfit.boardStatus === 'generating' && (
                   <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm text-amber-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-500">
-                      Generating Board
+                      正在生成搭配图
                     </p>
                     <p className="mt-1 leading-5">
-                      The overview board is still being composed in the background. You can keep browsing and this card will update when it is ready.
+                      搭配图正在后台生成，可以继续浏览，完成后会自动更新。
                     </p>
                   </div>
                 )}
@@ -205,23 +207,23 @@ export default function OutfitList({
                 {outfit.boardStatus === 'failed' && (
                   <div className="rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3 text-sm text-rose-900">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                      Board Failed
+                      搭配图生成失败
                     </p>
                     <p className="mt-1 leading-5">
-                      {outfit.boardError || 'The overview board could not be generated this time.'}
+                      {outfit.boardError || "本次搭配图生成失败，请重试。"}
                     </p>
                     <button
                       onClick={() => void onGenerateBoard(outfit)}
                       className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:shadow-md"
                     >
                       <span className="text-[11px] leading-none">↻</span>
-                      Retry Board
+                      重新生成搭配图
                     </button>
                   </div>
                 )}
 
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">Items ({outfit.items.length})</p>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">衣物（{outfit.items.length}）</p>
                   <div className="space-y-1.5">
                     {outfit.items.map(outfitItem => {
                       const item = items.find(candidate => candidate.id === outfitItem.clothingItemId);
@@ -231,7 +233,7 @@ export default function OutfitList({
                         <div key={outfitItem.clothingItemId} className="flex items-center gap-2 text-sm">
                           <span className="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
                           <span className="truncate text-gray-700">{item.name}</span>
-                          <span className="ml-auto shrink-0 text-xs text-gray-400">{item.category}</span>
+                          <span className="ml-auto shrink-0 text-xs text-gray-400">{categoryLabels[item.category]}</span>
                         </div>
                       );
                     })}
@@ -246,14 +248,14 @@ export default function OutfitList({
                   )}
                   {outfit.season && (
                     <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
-                      {outfit.season}
+                      {outfit.season.map(season => seasonLabels[season]).join(" · ")}
                     </span>
                   )}
                 </div>
 
                 {outfit.notes && (
                   <div className="border-t border-gray-100 pt-2">
-                    <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">Notes</p>
+                    <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">备注</p>
                     <p className="line-clamp-2 text-sm leading-relaxed text-gray-600">{outfit.notes}</p>
                   </div>
                 )}
@@ -267,7 +269,7 @@ export default function OutfitList({
       <Modal
         isOpen={Boolean(openOutfit)}
         onClose={() => setOpenOutfitId(null)}
-        title={openOutfit ? openOutfit.name : 'Outfit'}
+        title={openOutfit ? openOutfit.name : "搭配"}
         sizeClassName="max-w-6xl"
       >
         {openOutfit && (
@@ -288,7 +290,7 @@ export default function OutfitList({
                       }`}
                     >
                       <span className="text-[11px] leading-none">▦</span>
-                      Board
+                      搭配图
                     </button>
                     {((!openOutfit.boardImageUrl && openOutfit.boardStatus !== 'generating') || openOutfit.boardStatus === 'failed') && (
                       <button
@@ -299,7 +301,7 @@ export default function OutfitList({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-xs font-semibold text-amber-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
                       >
                         <span className="text-[11px] leading-none">↻</span>
-                        {openOutfit.boardStatus === 'failed' ? 'Retry Board' : 'Generate Board'}
+                        {openOutfit.boardStatus === 'failed' ? "重新生成搭配图" : "生成搭配图"}
                       </button>
                     )}
                     <button
@@ -318,14 +320,14 @@ export default function OutfitList({
                     >
                       <span className="text-[11px] leading-none">✦</span>
                       {openOutfit.tryOnStatus === 'generating'
-                        ? 'Generating…'
+                        ? "生成中…"
                         : openOutfit.tryOnStatus === 'failed'
-                          ? 'Retry Try-On'
+                          ? "重新生成试穿"
                         : openCanShowTryOn
-                          ? 'Try-On'
+                          ? "试穿"
                           : hasDefaultTemplate
-                            ? 'Generate Try-On'
-                            : 'Upload Template First'}
+                            ? "生成试穿图"
+                            : "请先上传人物照片"}
                     </button>
                   </div>
                 }
@@ -334,24 +336,24 @@ export default function OutfitList({
 
               <div className="min-h-[132px] rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Review Focus
+                  搭配说明
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
                   {(detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
                     ? hasDefaultTemplate
-                      ? 'This try-on preview uses your default model photo plus the current board image to create a styled editorial reference.'
-                      : 'Upload and set a default template photo first, then generate a try-on preview from this board.'
-                    : 'Use the board to review the look as a set. This is still an overview board, not a precise garment simulation.'}
+                      ? "基于默认人物照片和当前搭配图，生成穿搭效果参考。"
+                      : "先上传人物照片并设为默认，即可生成这套搭配的试穿参考图。"
+                    : "用搭配图查看整体配色与层次，实际穿着效果以实物为准。"}
                 </p>
               </div>
 
               {openOutfit.tryOnStatus === 'generating' && (
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                    Background Job
+                    后台生成中
                   </p>
                   <p className="mt-2 text-sm leading-6 text-indigo-900">
-                    The try-on image is still being generated. You can close this window and come back later. The request will keep running.
+                    试穿图正在生成，关闭窗口后任务仍会继续，稍后回来查看即可。
                   </p>
                 </div>
               )}
@@ -359,7 +361,7 @@ export default function OutfitList({
 
             <div className="space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs uppercase tracking-wide text-gray-400">Items ({openOutfit.items.length})</p>
+                <p className="mb-3 text-xs uppercase tracking-wide text-gray-400">衣物（{openOutfit.items.length}）</p>
                 <div className="space-y-2">
                   {openOutfit.items.map(outfitItem => {
                     const item = items.find(candidate => candidate.id === outfitItem.clothingItemId);
@@ -369,7 +371,7 @@ export default function OutfitList({
                       <div key={outfitItem.clothingItemId} className="flex items-center gap-2 text-sm">
                         <span className="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
                         <span className="truncate text-gray-700">{item.name}</span>
-                        <span className="ml-auto shrink-0 text-xs text-gray-400">{item.category}</span>
+                        <span className="ml-auto shrink-0 text-xs text-gray-400">{categoryLabels[item.category]}</span>
                       </div>
                     );
                   })}
@@ -384,14 +386,14 @@ export default function OutfitList({
                 )}
                 {openOutfit.season && (
                   <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
-                    {openOutfit.season}
+                    {openOutfit.season.map(season => seasonLabels[season]).join(" · ")}
                   </span>
                 )}
               </div>
 
               {openOutfit.notes && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">Notes</p>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-gray-400">备注</p>
                   <p className="text-sm leading-relaxed text-gray-600">{openOutfit.notes}</p>
                 </div>
               )}
@@ -402,7 +404,7 @@ export default function OutfitList({
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md"
                 >
                   <span className="text-[12px] leading-none">✎</span>
-                  Edit Outfit
+                  编辑搭配
                 </button>
                 <button
                   onClick={() => {
@@ -412,7 +414,7 @@ export default function OutfitList({
                   className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-600 hover:shadow-md"
                 >
                   <span className="text-[12px] leading-none">🗑</span>
-                  Delete Outfit
+                  删除搭配
                 </button>
               </div>
             </div>

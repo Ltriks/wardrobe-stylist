@@ -1,5 +1,7 @@
 'use client';
 
+import { errorLabel } from './display-labels';
+
 import { wardrobeFetch } from './profile-client';
 
 import { ClothingItem, ClothingItemFormData, Outfit, OutfitFormData, PendingItem, PersonalTemplate } from '@/app/types';
@@ -80,9 +82,9 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
       data = JSON.parse(text) as unknown;
     } catch {
       if (!response.ok) {
-        throw new Error(text.slice(0, 320) || `Request failed (${response.status})`);
+        throw new Error(text.slice(0, 320) || `请求失败（${response.status}）`);
       }
-      throw new Error('Invalid response from server.');
+      throw new Error('服务器返回异常，请重试。');
     }
   }
 
@@ -94,8 +96,8 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
       'error' in data &&
       typeof (data as { error: unknown }).error === 'string'
         ? (data as { error: string }).error
-        : `Request failed (${response.status})`;
-    throw new Error(message);
+        : `请求失败（${response.status}）`;
+    throw new Error(errorLabel(message));
   }
 
   return data as T;

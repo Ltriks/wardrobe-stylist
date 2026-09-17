@@ -1,24 +1,26 @@
 'use client';
 
+import { colorLabel } from '../lib/display-labels';
+
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
 import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
 
 const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'top', label: 'Top' },
-  { value: 'bottom', label: 'Bottom' },
-  { value: 'outerwear', label: 'Outerwear' },
-  { value: 'shoes', label: 'Shoes' },
-  { value: 'accessory', label: 'Accessory' },
-  { value: 'other', label: 'Other' },
+  { value: 'top', label: "上装" },
+  { value: 'bottom', label: "下装" },
+  { value: 'outerwear', label: "外套" },
+  { value: 'shoes', label: "鞋履" },
+  { value: 'accessory', label: "配饰" },
+  { value: 'other', label: "其他" },
 ];
 
 const SEASONS: { value: Season; label: string }[] = [
-  { value: 'spring', label: 'Spring' },
-  { value: 'summer', label: 'Summer' },
-  { value: 'autumn', label: 'Autumn' },
-  { value: 'winter', label: 'Winter' },
+  { value: 'spring', label: "春季" },
+  { value: 'summer', label: "夏季" },
+  { value: 'autumn', label: "秋季" },
+  { value: 'winter', label: "冬季" },
 ];
 
 function BatchConfirmPageContent() {
@@ -181,12 +183,12 @@ function BatchConfirmPageContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-300 text-5xl mb-4">📦</div>
-          <p className="text-gray-600">No pending items to confirm</p>
+          <p className="text-gray-600">没有待确认的衣物</p>
           <button
             onClick={() => router.push('/')}
             className="mt-4 text-blue-600 hover:text-blue-800"
           >
-            Back to Home
+            返回衣柜
           </button>
         </div>
       </div>
@@ -200,12 +202,12 @@ function BatchConfirmPageContent() {
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Batch Upload Confirmation</h1>
+              <h1 className="text-xl font-semibold text-gray-900">批量入柜确认</h1>
               <p className="text-gray-500 text-sm mt-1">
-                {pendingCount} items pending confirmation
+                {pendingCount} 件衣物待确认
                 {selectedCount > 0 && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    · {selectedCount} selected
+                    · {selectedCount} 件已选
                   </span>
                 )}
               </p>
@@ -215,26 +217,26 @@ function BatchConfirmPageContent() {
                 onClick={toggleSelectAllPending}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
-                {allPendingSelected ? 'Clear Selection' : 'Select All'}
+                {allPendingSelected ? "取消全选" : "全选"}
               </button>
               <button
                 onClick={() => router.push('/')}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
-                Cancel
+                取消
               </button>
               <button
                 onClick={confirmAll}
                 disabled={pendingCount === 0 || isProcessing}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {isProcessing ? 'Processing...' : `Confirm All (${pendingCount})`}
+                {isProcessing ? "处理中…" : `全部确认（${pendingCount}）`}
               </button>
             </div>
           </div>
           {selectedCount > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-              <span className="text-sm font-medium text-blue-900">Bulk set category:</span>
+              <span className="text-sm font-medium text-blue-900">批量设置分类：</span>
               {CATEGORIES.map(cat => (
                 <button
                   key={cat.value}
@@ -276,7 +278,7 @@ function BatchConfirmFallback() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="text-gray-300 text-5xl mb-4">⏳</div>
-        <p className="text-gray-600">Loading batch confirmation...</p>
+        <p className="text-gray-600">正在加载待确认衣物…</p>
       </div>
     </div>
   );
@@ -324,7 +326,7 @@ function PendingItemCard({
         />
         {isSkipped && (
           <div className="absolute inset-0 bg-white/50 flex items-center justify-center">
-            <span className="text-gray-500 font-medium">Skipped</span>
+            <span className="text-gray-500 font-medium">已跳过</span>
           </div>
         )}
         <label className="absolute top-2 left-2 inline-flex items-center justify-center rounded-md bg-white/90 p-1 shadow-sm">
@@ -338,7 +340,7 @@ function PendingItemCard({
         {/* AI Badge */}
         {isAI && (
           <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
-            AI
+            智能识别
           </div>
         )}
         {/* Duplicate Warning */}
@@ -347,29 +349,8 @@ function PendingItemCard({
             ⚠️ 可能重复
           </div>
         )}
-        {/* Source indicators */}
-        <div className="absolute bottom-2 left-2 flex gap-1">
-          {item.categorySource === 'ai' && (
-            <span className="bg-green-600 text-white text-xs px-1.5 py-0.5 rounded">C-AI</span>
-          )}
-          {item.colorSource === 'ai' && (
-            <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded">CLR-AI</span>
-          )}
-          {item.categorySource === 'rule' && (
-            <span className="bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded">C-Rule</span>
-          )}
-          {item.colorSource === 'rule' && (
-            <span className="bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded">CLR-Rule</span>
-          )}
-          {item.seasonSource === 'default' && (
-            <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded">S-?</span>
-          )}
-        </div>
-        
-        {/* Debug info - raw predictions */}
-        <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded max-w-[140px] truncate">
-          {item.rawPredictions || 'No raw predictions'}
-        </div>
+        {item.suggestedSeason.length === 0 && <span className="absolute bottom-2 left-2 bg-white text-xs px-2 py-1">待选择季节</span>}
+
       </div>
 
       {/* Duplicate Warning */}
@@ -387,6 +368,7 @@ function PendingItemCard({
         <div>
           <input
             type="text"
+            aria-label="衣物名称"
             value={item.suggestedName}
             onChange={(e) => onUpdate({ suggestedName: e.target.value })}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -397,6 +379,7 @@ function PendingItemCard({
         {/* Category */}
         <div>
           <select
+            aria-label="分类"
             value={item.suggestedCategory}
             onChange={(e) => onUpdate({ suggestedCategory: e.target.value as Category })}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -414,10 +397,11 @@ function PendingItemCard({
         <div>
           <input
             type="text"
-            value={item.suggestedColor}
+            aria-label="颜色"
+            value={colorLabel(item.suggestedColor)}
             onChange={(e) => onUpdate({ suggestedColor: e.target.value })}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Color"
+            placeholder="颜色"
             disabled={isSkipped}
           />
         </div>
@@ -448,14 +432,14 @@ function PendingItemCard({
             disabled={isSkipped}
             className="flex-1 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Skip
+            跳过
           </button>
           <button
             onClick={onConfirm}
             disabled={isSkipped}
             className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Confirm
+            确认
           </button>
         </div>
       </div>

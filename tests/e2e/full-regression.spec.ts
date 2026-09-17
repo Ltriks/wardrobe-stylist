@@ -124,36 +124,36 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
 
   test('supports manual clothing CRUD with image upload', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Add Item' }).click();
+    await page.getByRole('button', { name: "添加衣物" }).click();
 
     const form = page.locator('form');
-    await form.getByPlaceholder('e.g., White T-Shirt').fill(state.manualItemName);
-    await form.getByPlaceholder('e.g., White, Blue, Red').fill('Blue');
+    await form.getByPlaceholder("例如：白色短袖").fill(state.manualItemName);
+    await form.getByPlaceholder("例如：白色、蓝色、红色").fill('Blue');
     await form.locator('input[type="file"]').setInputFiles(state.manualImagePath);
-    await form.getByRole('button', { name: 'Spring' }).click();
-    await form.getByRole('button', { name: 'Summer' }).click();
-    await form.getByPlaceholder('Any additional notes...').fill('Created by Playwright for CRUD coverage.');
-    await form.getByRole('button', { name: 'Add Item' }).click();
+    await form.getByRole('button', { name: "春季" }).click();
+    await form.getByRole('button', { name: "夏季" }).click();
+    await form.getByPlaceholder("写下材质、尺码或其他备注…").fill('Created by Playwright for CRUD coverage.');
+    await form.getByRole('button', { name: "添加衣物" }).click();
 
     await expect(page.getByText(state.manualItemName)).toBeVisible();
 
-    const filterSelects = page.locator('section').filter({ hasText: 'Filters' }).locator('select');
+    const filterSelects = page.locator('section').filter({ hasText: "筛选衣物" }).locator('select');
     await filterSelects.nth(0).selectOption('top');
     await filterSelects.nth(1).selectOption('spring');
     await expect(page.getByText(state.manualItemName)).toBeVisible();
-    await page.getByRole('button', { name: 'Clear' }).click();
+    await page.getByRole('button', { name: "清除" }).click();
 
-    await page.getByLabel(`Edit ${state.manualItemName}`).click();
-    await form.getByPlaceholder('e.g., White T-Shirt').fill(state.manualUpdatedItemName);
-    await form.getByPlaceholder('e.g., White, Blue, Red').fill('Navy');
-    await form.getByPlaceholder('Any additional notes...').fill('Updated by Playwright.');
-    await form.getByRole('button', { name: 'Update Item' }).click();
+    await page.getByLabel(`编辑 ${state.manualItemName}`).click();
+    await form.getByPlaceholder("例如：白色短袖").fill(state.manualUpdatedItemName);
+    await form.getByPlaceholder("例如：白色、蓝色、红色").fill('Navy');
+    await form.getByPlaceholder("写下材质、尺码或其他备注…").fill('Updated by Playwright.');
+    await form.getByRole('button', { name: "保存衣物" }).click();
 
     await expect(page.getByText(state.manualUpdatedItemName)).toBeVisible();
-    await expect(page.getByText('Navy')).toBeVisible();
+    await expect(page.getByText('藏蓝色')).toBeVisible();
 
     page.once('dialog', dialog => dialog.accept());
-    await page.getByLabel(`Delete ${state.manualUpdatedItemName}`).click();
+    await page.getByLabel(`删除 ${state.manualUpdatedItemName}`).click();
     await expect(page.getByText(state.manualUpdatedItemName)).toHaveCount(0);
   });
 
@@ -170,14 +170,14 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
     ]);
 
     await expect(page).toHaveURL(/\/batch-confirm\?batchId=/, { timeout: 180_000 });
-    await expect(page.getByRole('heading', { name: 'Batch Upload Confirmation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "批量入柜确认" })).toBeVisible();
     await expect(page.getByText(state.stalePendingName)).toHaveCount(0);
-    await expect(page.locator('input[placeholder="Color"]')).toHaveCount(4, { timeout: 30_000 });
+    await expect(page.locator('input[placeholder="颜色"]')).toHaveCount(4, { timeout: 30_000 });
     await expect(page.locator('[title]').first()).toBeVisible();
 
-    const nameInputs = page.locator('input[type="text"]:not([placeholder="Color"])');
-    const categorySelects = page.locator('select:not(#family-profile)');
-    const colorInputs = page.locator('input[placeholder="Color"]');
+    const nameInputs = page.locator('input[type="text"]:not([placeholder="颜色"])');
+    const categorySelects = page.locator('select[aria-label="分类"]');
+    const colorInputs = page.locator('input[placeholder="颜色"]');
 
     await nameInputs.nth(0).fill(state.batchTopName);
     await nameInputs.nth(1).fill(state.skippedDuplicateName);
@@ -194,10 +194,10 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
     await colorInputs.nth(2).fill('Black');
     await colorInputs.nth(3).fill('White');
 
-    await page.getByRole('button', { name: 'Skip' }).nth(1).click();
-    await expect(page.getByText('Skipped')).toBeVisible();
+    await page.getByRole('button', { name: "跳过" }).nth(1).click();
+    await expect(page.getByText("已跳过")).toBeVisible();
 
-    await page.getByRole('button', { name: /Confirm All \(3\)/ }).click();
+    await page.getByRole('button', { name: /全部确认（3）/ }).click();
     await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
 
     await expect(page.getByText(state.batchTopName)).toBeVisible();
@@ -211,9 +211,9 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
     const existingIds = new Set(existingTemplates.map(template => template.id));
 
     await page.goto('/');
-    await page.getByRole('button', { name: /Outfits \(/ }).click();
-    await page.getByRole('button', { name: /Manage Template/ }).click();
-    await expect(page.getByText('Upload a clean full-body front photo with a simple background')).toBeVisible();
+    await page.getByRole('button', { name: /搭配灵感/ }).click();
+    await page.getByRole('button', { name: /人物照片/ }).click();
+    await expect(page.getByText("上传清晰的正面全身照，背景尽量简洁，试穿效果会更好。")).toBeVisible();
 
     await page.locator('#template-upload').setInputFiles(state.templatePath);
     await expect(page.getByText(state.templateDisplayName)).toBeVisible({ timeout: 60_000 });
@@ -223,30 +223,30 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
 
     const templateRow = getTemplateRow(page, state.templateDisplayName);
 
-    if (await templateRow.getByRole('button', { name: 'Set Default' }).isVisible().catch(() => false)) {
-      await templateRow.getByRole('button', { name: 'Set Default' }).click();
+    if (await templateRow.getByRole('button', { name: "设为默认" }).isVisible().catch(() => false)) {
+      await templateRow.getByRole('button', { name: "设为默认" }).click();
     }
 
-    await expect(templateRow.locator('span').filter({ hasText: 'Default' }).first()).toBeVisible({ timeout: 20_000 });
-    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(templateRow.locator('span').filter({ hasText: "默认" }).first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: "完成" }).click();
   });
 
   test('supports outfit create, board generation, try-on generation, edit, and delete', async ({ page, request }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /Outfits \(/ }).click();
-    await page.getByRole('button', { name: 'Create Outfit' }).click();
+    await page.getByRole('button', { name: /搭配灵感/ }).click();
+    await page.getByRole('button', { name: "创建搭配" }).click();
 
     const outfitForm = page.locator('form');
-    const searchInput = outfitForm.getByPlaceholder('Search by name, color, or category');
+    const searchInput = outfitForm.getByPlaceholder("搜索名称、颜色或分类");
     await addOutfitPiece(page, outfitForm, searchInput, state.batchTopName);
     await addOutfitPiece(page, outfitForm, searchInput, state.batchBottomName);
     await addOutfitPiece(page, outfitForm, searchInput, state.batchShoesName);
 
-    await outfitForm.getByPlaceholder('e.g., Weekend Coffee Run').fill(state.outfitName);
-    await outfitForm.getByPlaceholder('e.g., Work, Casual, Travel').fill('Weekend');
-    await outfitForm.getByRole('button', { name: 'Autumn' }).last().click();
-    await outfitForm.getByPlaceholder('Any notes about balance, mood, or styling intent...').fill('Full regression outfit.');
-    await outfitForm.getByRole('button', { name: 'Create Outfit' }).click();
+    await outfitForm.getByPlaceholder("例如：周末出游穿搭").fill(state.outfitName);
+    await outfitForm.getByPlaceholder("例如：上学、日常、旅行").fill('Weekend');
+    await outfitForm.getByRole('button', { name: "秋季" }).last().click();
+    await outfitForm.getByPlaceholder("记录搭配灵感、风格和细节…").fill('Full regression outfit.');
+    await outfitForm.getByRole('button', { name: "创建搭配" }).click();
 
     await expect(page.getByRole('heading', { name: state.outfitName, exact: true })).toBeVisible({ timeout: 30_000 });
 
@@ -255,30 +255,30 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
 
     outfit = await waitForOutfitTerminalState(request, outfit!.id, 'boardStatus');
     await page.reload();
-    await page.getByRole('button', { name: /Outfits \(/ }).click();
+    await page.getByRole('button', { name: /搭配灵感/ }).click();
     await expect(page.getByRole('heading', { name: state.outfitName, exact: true })).toBeVisible();
 
     if (outfit.boardStatus === 'failed') {
       const outfitCard = getOutfitCard(page, state.outfitName);
-      await outfitCard.getByRole('button', { name: /Retry Board/ }).click();
+      await outfitCard.getByRole('button', { name: /重新生成搭配图/ }).click();
       outfit = await waitForOutfitTerminalState(request, outfit.id, 'boardStatus');
       await page.reload();
-      await page.getByRole('button', { name: /Outfits \(/ }).click();
+      await page.getByRole('button', { name: /搭配灵感/ }).click();
     }
 
     const outfitCard = getOutfitCard(page, state.outfitName);
-    await outfitCard.getByRole('button', { name: 'Edit' }).click();
+    await outfitCard.getByRole('button', { name: "编辑" }).click();
 
     const editForm = page.locator('form');
-    await editForm.getByPlaceholder('e.g., Work, Casual, Travel').fill(state.outfitUpdatedOccasion);
-    await editForm.getByRole('button', { name: 'Update Outfit' }).click();
+    await editForm.getByPlaceholder("例如：上学、日常、旅行").fill(state.outfitUpdatedOccasion);
+    await editForm.getByRole('button', { name: "保存搭配" }).click();
     await expect(page.getByRole('heading', { name: state.outfitName, exact: true })).toBeVisible({ timeout: 30_000 });
 
-    await outfitCard.getByRole('button', { name: 'Inspect' }).click();
+    await outfitCard.getByRole('button', { name: "查看详情" }).click();
 
     const inspectModal = page.locator('div.fixed.inset-0').last();
     await expect(inspectModal.getByText(state.outfitName, { exact: true })).toBeVisible();
-    const tryOnButton = inspectModal.getByRole('button', { name: /Generate Try-On|Try-On/ }).first();
+    const tryOnButton = inspectModal.getByRole('button', { name: /生成试穿图|试穿/ }).first();
     await tryOnButton.click();
 
     const refreshedOutfit = await waitForOutfitByName(request, state.outfitName);
@@ -286,25 +286,25 @@ test.describe.serial('Wardrobe Stylist full regression', () => {
     const tryOnOutfit = await waitForOutfitTerminalState(request, refreshedOutfit!.id, 'tryOnStatus');
 
     await page.reload();
-    await page.getByRole('button', { name: /Outfits \(/ }).click();
+    await page.getByRole('button', { name: /搭配灵感/ }).click();
     await expect(page.getByRole('heading', { name: state.outfitName, exact: true })).toBeVisible();
 
     const refreshedCard = getOutfitCard(page, state.outfitName);
     if (tryOnOutfit.tryOnStatus === 'success') {
-      await expect(refreshedCard.getByRole('button', { name: /View Try-On/ })).toBeVisible();
+      await expect(refreshedCard.getByRole('button', { name: /查看试穿/ })).toBeVisible();
     } else {
-      await expect(refreshedCard.getByText(/Try-on failed/i)).toBeVisible();
+      await expect(refreshedCard.getByText(/试穿生成失败/)).toBeVisible();
     }
 
     page.once('dialog', dialog => dialog.accept());
-    await refreshedCard.getByRole('button', { name: 'Delete' }).click();
+    await refreshedCard.getByRole('button', { name: "删除" }).click();
     await expect(page.getByText(state.outfitName)).toHaveCount(0);
 
-    await page.getByRole('button', { name: /Manage Template/ }).click();
+    await page.getByRole('button', { name: /人物照片/ }).click();
     const templateRow = getTemplateRow(page, state.templateDisplayName);
 
     page.once('dialog', dialog => dialog.accept());
-    await templateRow.getByRole('button', { name: 'Delete' }).click();
+    await templateRow.getByRole('button', { name: "删除" }).click();
     await expect(page.getByText(state.templateDisplayName)).toHaveCount(0);
     state.createdTemplateIds = [];
   });

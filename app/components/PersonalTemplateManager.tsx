@@ -24,7 +24,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
   useEffect(() => {
     refresh().catch(err => {
       console.error('Failed to load templates:', err);
-      setError('Failed to load templates.');
+      setError("人物照片加载失败。");
     });
   }, []);
 
@@ -46,14 +46,14 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(typeof data?.error === 'string' ? data.error : 'Upload failed');
+        throw new Error(typeof data?.error === 'string' ? data.error : "上传失败");
       }
 
       const name = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
       await createTemplateApi({ name, imageUrl: data.url });
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+      setError(err instanceof Error ? err.message : "上传失败，请重试。");
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -68,7 +68,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Delete this template?')) {
+    if (confirm("确定删除这张人物照片吗？")) {
       await deleteTemplateApi(id);
       await refresh();
     }
@@ -79,7 +79,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
       {/* Upload Section */}
       <div>
         <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-          Upload a clean full-body front photo with a simple background for the best preview result.
+          上传清晰的正面全身照，背景尽量简洁，试穿效果会更好。
         </div>
         <input
           ref={fileInputRef}
@@ -94,7 +94,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
           disabled={uploading}
           className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
         >
-          {uploading ? 'Uploading...' : '📷 Upload Front Template Photo'}
+          {uploading ? "上传中…" : "上传正面全身照"}
         </button>
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
@@ -103,7 +103,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
       {templates.length === 0 ? (
         <div className="text-center py-8 text-gray-400">
           <div className="text-4xl mb-2">👤</div>
-          <p className="text-sm">No templates yet. Upload a full-body photo to use as your preview background.</p>
+          <p className="text-sm">还没有人物照片，上传一张全身照即可开始试穿。</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -128,7 +128,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
                 <p className="text-sm font-medium text-gray-900 truncate">{template.name}</p>
                 {template.isDefault && (
                   <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                    Default
+                    默认
                   </span>
                 )}
               </div>
@@ -140,14 +140,14 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
                     onClick={() => void handleSetDefault(template.id)}
                     className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
                   >
-                    Set Default
+                    设为默认
                   </button>
                 )}
                 <button
                     onClick={() => void handleDelete(template.id)}
                   className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
                 >
-                  Delete
+                  删除
                 </button>
               </div>
             </div>
@@ -162,7 +162,7 @@ export default function PersonalTemplateManager({ onClose, onTemplateChange }: P
             onClick={onClose}
             className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
           >
-            Done
+            完成
           </button>
         </div>
       )}

@@ -3,8 +3,8 @@ import "./globals.css";
 import ProfileSwitcher from './components/ProfileSwitcher';
 
 export const metadata: Metadata = {
-  title: "Wardrobe Stylist",
-  description: "Organize your wardrobe and create outfits",
+  title: "衣柜计划 · 家庭穿搭作战室",
+  description: "整理全家的衣柜，组合搭配，预览今天的出场造型。",
 };
 
 export default function RootLayout({
@@ -13,14 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body style={{
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
-        margin: 0,
-        padding: 0,
-        backgroundColor: '#ffffff',
-        color: '#1f2937',
-      }}><ProfileSwitcher />{children}</body>
+    <html lang="zh-CN" data-theme="rebel" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('wardrobe-theme');if(t==='paper'||t==='rebel')document.documentElement.dataset.theme=t}catch(e){}" }} /></head>
+      <body><ProfileSwitcher />{children}</body>
     </html>
   );
 }

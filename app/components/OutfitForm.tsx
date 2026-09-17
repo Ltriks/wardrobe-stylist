@@ -1,13 +1,15 @@
 'use client';
 
+import { categoryLabels, colorLabel } from '../lib/display-labels';
+
 import { useEffect, useMemo, useState } from 'react';
 import { Category, ClothingItem, Season, OutfitFormData } from '../types';
 
 const SEASONS: { value: Season; label: string }[] = [
-  { value: 'spring', label: 'Spring' },
-  { value: 'summer', label: 'Summer' },
-  { value: 'autumn', label: 'Autumn' },
-  { value: 'winter', label: 'Winter' },
+  { value: 'spring', label: "春季" },
+  { value: 'summer', label: "夏季" },
+  { value: 'autumn', label: "秋季" },
+  { value: 'winter', label: "冬季" },
 ];
 
 interface OutfitFormProps {
@@ -19,13 +21,13 @@ interface OutfitFormProps {
 }
 
 const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'top', label: 'Top' },
-  { value: 'bottom', label: 'Bottom' },
-  { value: 'outerwear', label: 'Outerwear' },
-  { value: 'shoes', label: 'Shoes' },
-  { value: 'accessory', label: 'Accessory' },
-  { value: 'other', label: 'Other' },
+  { value: 'all', label: "全部" },
+  { value: 'top', label: "上装" },
+  { value: 'bottom', label: "下装" },
+  { value: 'outerwear', label: "外套" },
+  { value: 'shoes', label: "鞋履" },
+  { value: 'accessory', label: "配饰" },
+  { value: 'other', label: "其他" },
 ];
 
 export default function OutfitForm({ items, initialData, onSubmit, onCancel, isSubmitting = false }: OutfitFormProps) {
@@ -100,14 +102,14 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
         query.length === 0 ||
         item.name.toLowerCase().includes(query) ||
         item.color.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query);
+        item.category.toLowerCase().includes(query) || categoryLabels[item.category].includes(query) || colorLabel(item.color).includes(query);
 
       return matchesCategory && matchesColor && matchesSearch;
     });
   }, [items, categoryFilter, colorFilter, searchQuery]);
   const selectedSummary = selectedItems.length === 0
-    ? 'Pick at least one piece'
-    : `${selectedItems.length} piece${selectedItems.length > 1 ? 's' : ''} selected`;
+    ? "先挑选一件衣物"
+    : `已选 ${selectedItems.length} 件衣物`;
 
   const hasActiveFilters = categoryFilter !== 'all' || colorFilter !== 'all' || searchQuery.trim().length > 0;
 
@@ -116,7 +118,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
       <div className="space-y-4 sm:hidden">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Outfit Name <span className="text-red-500">*</span>
+            搭配名称 <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -124,7 +126,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
             onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
             disabled={isSubmitting}
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            placeholder="e.g., Weekend Coffee Run"
+            placeholder="例如：周末出游穿搭"
             required
           />
         </div>
@@ -132,19 +134,19 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Look details</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">搭配信息</p>
               <p className="mt-1 text-sm text-slate-700">
-                Set the name and season first, then scroll into the wardrobe list to pick pieces.
+                先给搭配取个名字，再从衣柜里挑选衣物。
               </p>
             </div>
             <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              {selectedItems.length} selected
+              {selectedItems.length} 件已选
             </div>
           </div>
 
           <div className="mt-4">
             <label className="mb-2 block text-sm font-medium text-gray-700">
-              Season <span className="text-gray-400 font-normal">(optional)</span>
+              季节 <span className="text-gray-400 font-normal">（选填）</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {SEASONS.map(season => (
@@ -167,7 +169,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
 
           <div className="mt-4">
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Occasion <span className="text-gray-400 font-normal">(optional)</span>
+              场合 <span className="text-gray-400 font-normal">（选填）</span>
             </label>
             <input
               type="text"
@@ -175,7 +177,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
               onChange={e => setFormData(prev => ({ ...prev, occasion: e.target.value }))}
               disabled={isSubmitting}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="e.g., Work, Casual, Travel"
+              placeholder="例如：上学、日常、旅行"
             />
           </div>
         </div>
@@ -184,10 +186,10 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
       <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-4 sm:hidden">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500">Selection</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500">已选清单</p>
             <p className="mt-1 text-sm font-medium text-indigo-950">{selectedSummary}</p>
             <p className="mt-1 text-xs text-indigo-700">
-              Tap cards below to add or remove pieces without leaving this screen.
+              点击下方衣物，即可加入或移出搭配。
             </p>
           </div>
           <div className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-indigo-700 shadow-sm">
@@ -218,7 +220,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-900">{item.name}</p>
-                  <p className="truncate text-xs text-slate-500">{item.color} · {item.category}</p>
+                  <p className="truncate text-xs text-slate-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
                 </div>
               </button>
             ))}
@@ -229,17 +231,17 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.95fr)]">
         <section className="min-w-0 space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Select pieces</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">挑选衣物</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Search, filter, and tap pieces to build the look. This view is meant to feel like a closet browser, not a long checkbox list.
+              搜索、筛选，挑出你的心仪单品，自由组合今天的穿搭。
             </p>
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-4 rounded-2xl border border-purple-100 bg-purple-50/70 p-3 sm:hidden">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-purple-500">Quick pick</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-purple-500">快速挑选</p>
               <p className="mt-1 text-sm text-purple-900">
-                Use search and filters, then tap rows to add or remove pieces quickly.
+                按名称或分类查找，点击衣物即可选中。
               </p>
             </div>
 
@@ -250,7 +252,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 onChange={e => setSearchQuery(e.target.value)}
                 disabled={isSubmitting}
                 className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                placeholder="Search by name, color, or category"
+                placeholder="搜索名称、颜色或分类"
               />
               <select
                 value={colorFilter}
@@ -260,7 +262,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
               >
                 {availableColors.map(color => (
                   <option key={color} value={color}>
-                    {color === 'all' ? 'All colors' : color}
+                    {color === 'all' ? "全部颜色" : colorLabel(color)}
                   </option>
                 ))}
               </select>
@@ -286,7 +288,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
 
             <div className="mt-3 flex items-center justify-between sm:hidden">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-                {filteredItems.length} result{filteredItems.length === 1 ? '' : 's'}
+                {filteredItems.length} 件衣物
               </p>
               {hasActiveFilters && (
                 <button
@@ -298,7 +300,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                   }}
                   className="text-xs font-medium text-purple-700"
                 >
-                  Clear filters
+                  清除筛选
                 </button>
               )}
             </div>
@@ -335,7 +337,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium leading-5 text-gray-900">{item.name}</p>
-                          <p className="mt-1 text-xs text-gray-500">{item.color} · {item.category}</p>
+                          <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
                         </div>
                         <div
                           className={`mt-0.5 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${
@@ -344,7 +346,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                               : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {isSelected ? 'Selected' : 'Tap'}
+                          {isSelected ? "已选" : "选择"}
                         </div>
                       </div>
                     </div>
@@ -387,12 +389,12 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                             : 'bg-white/90 text-slate-600 ring-1 ring-black/5'
                         }`}
                       >
-                        {isSelected ? 'Selected' : 'Tap'}
+                        {isSelected ? "已选" : "选择"}
                       </div>
                     </div>
                     <div className="mt-2.5">
                       <p className="truncate text-sm font-medium leading-5 text-gray-900">{item.name}</p>
-                      <p className="mt-1 text-xs text-gray-500">{item.color} · {item.category}</p>
+                      <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
                     </div>
                   </button>
                 );
@@ -401,7 +403,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
 
             {filteredItems.length === 0 && (
               <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                No pieces match the current filters.
+                暂时没有符合条件的衣物，换个筛选试试。
               </div>
             )}
           </div>
@@ -410,7 +412,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
         <aside className="min-w-0 space-y-4">
           <div className="hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:block">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Outfit Name <span className="text-red-500">*</span>
+              搭配名称 <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -418,17 +420,17 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
               onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
               disabled={isSubmitting}
               className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              placeholder="e.g., Weekend Coffee Run"
+              placeholder="例如：周末出游穿搭"
               required
             />
           </div>
 
           <div className="hidden rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 sm:block">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500">Selected pieces</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-500">已选衣物</p>
             <p className="mt-2 text-sm text-indigo-900">
               {selectedItems.length > 0
-                ? `${selectedItems.length} pieces ready for this look`
-                : 'Choose at least one piece to start building the board.'}
+                ? `已选 ${selectedItems.length} 件衣物`
+                : "挑选至少一件衣物，开启你的搭配。"}
             </p>
             <div className="mt-4 space-y-3">
               {selectedItems.map(item => (
@@ -450,7 +452,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">{item.name}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{item.color} · {item.category}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
                   </div>
                   <button
                     type="button"
@@ -458,20 +460,20 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                     disabled={isSubmitting}
                     className="shrink-0 rounded-full px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
                   >
-                    Remove
+                    移除
                   </button>
                 </div>
               ))}
             </div>
             {formData.itemIds.length === 0 && (
-              <p className="mt-3 text-sm text-red-500">Please select at least one item</p>
+              <p className="mt-3 text-sm text-red-500">请至少选择一件衣物</p>
             )}
           </div>
 
           <div className="hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-4 sm:block">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Occasion <span className="text-gray-400 font-normal">(optional)</span>
+                场合 <span className="text-gray-400 font-normal">（选填）</span>
               </label>
               <input
                 type="text"
@@ -479,13 +481,13 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 onChange={e => setFormData(prev => ({ ...prev, occasion: e.target.value }))}
                 disabled={isSubmitting}
                 className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                placeholder="e.g., Work, Casual, Travel"
+                placeholder="例如：上学、日常、旅行"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Season <span className="text-gray-400 font-normal">(optional)</span>
+                季节 <span className="text-gray-400 font-normal">（选填）</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {SEASONS.map(season => (
@@ -508,7 +510,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Notes <span className="text-gray-400 font-normal">(optional)</span>
+                备注 <span className="text-gray-400 font-normal">（选填）</span>
               </label>
               <textarea
                 value={formData.notes}
@@ -516,7 +518,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 disabled={isSubmitting}
                 className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
                 rows={4}
-                placeholder="Any notes about balance, mood, or styling intent..."
+                placeholder="记录搭配灵感、风格和细节…"
               />
             </div>
           </div>
@@ -527,9 +529,9 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
         <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-indigo-900">
-              {initialData ? 'Updating outfit board...' : 'Creating outfit board...'}
+              {initialData ? "正在更新搭配图…" : "正在创建搭配图…"}
             </span>
-            <span className="text-indigo-600">Working</span>
+            <span className="text-indigo-600">处理中</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-indigo-100">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-indigo-500" />
@@ -543,7 +545,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
           disabled={formData.itemIds.length === 0 || !formData.name.trim() || isSubmitting}
           className="flex-1 bg-purple-600 text-white py-3 px-4 rounded-xl font-medium hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
-          {isSubmitting ? (initialData ? 'Updating...' : 'Creating...') : initialData ? 'Update Outfit' : 'Create Outfit'}
+          {isSubmitting ? (initialData ? "更新中…" : "创建中…") : initialData ? "保存搭配" : "创建搭配"}
         </button>
         <button
           type="button"
@@ -551,7 +553,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
           disabled={isSubmitting}
           className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition-colors"
         >
-          Cancel
+          取消
         </button>
       </div>
 
@@ -563,14 +565,14 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
             disabled={isSubmitting}
             className="flex-1 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200"
           >
-            Cancel
+            取消
           </button>
           <button
             type="submit"
             disabled={formData.itemIds.length === 0 || !formData.name.trim() || isSubmitting}
             className="flex-[1.4] rounded-xl bg-purple-600 px-4 py-3 font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            {isSubmitting ? (initialData ? 'Updating...' : 'Creating...') : initialData ? 'Update Outfit' : 'Create Outfit'}
+            {isSubmitting ? (initialData ? "更新中…" : "创建中…") : initialData ? "保存搭配" : "创建搭配"}
           </button>
         </div>
       </div>

@@ -51,7 +51,7 @@ export default function Home() {
 
   useEffect(() => {
     loadInitialData().catch(error => {
-      const message = error instanceof Error ? error.message : 'Failed to load wardrobe data.';
+      const message = error instanceof Error ? error.message : "衣柜加载失败，请刷新重试。";
       console.error('Failed to load wardrobe data:', error);
       setToast({ tone: 'error', message });
     });
@@ -105,13 +105,13 @@ export default function Home() {
   }, []);
 
   const handleDeleteItem = useCallback((id: string) => {
-    if (confirm('Are you sure you want to delete this item?')) {
+    if (confirm("确定删除这件衣物吗？")) {
       void (async () => {
         try {
           await deleteItemApi(id);
           setItems(currentItems => currentItems.filter(item => item.id !== id));
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Delete failed.';
+          const message = error instanceof Error ? error.message : "删除失败，请重试。";
           setToast({ tone: 'error', message });
         }
       })();
@@ -152,13 +152,13 @@ export default function Home() {
   }, []);
 
   const handleDeleteOutfit = useCallback((id: string) => {
-    if (confirm('Are you sure you want to delete this outfit?')) {
+    if (confirm("确定删除这套搭配吗？")) {
       void (async () => {
         try {
           await deleteOutfitApi(id);
           setOutfits(currentOutfits => currentOutfits.filter(outfit => outfit.id !== id));
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Delete failed.';
+          const message = error instanceof Error ? error.message : "删除失败，请重试。";
           setToast({ tone: 'error', message });
         }
       })();
@@ -192,7 +192,7 @@ export default function Home() {
 
       setToast({
         tone: 'info',
-        message: `Generating a board for “${savedOutfit.name}” in the background.`,
+        message: `正在后台为「${savedOutfit.name}」生成搭配图。`,
       });
 
       try {
@@ -201,7 +201,7 @@ export default function Home() {
           currentOutfits.map(outfit => (outfit.id === queued.id ? queued : outfit)),
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Board generation failed.';
+        const message = error instanceof Error ? error.message : "搭配图生成失败。";
         setOutfits(currentOutfits =>
           currentOutfits.map(outfit =>
             outfit.id === savedOutfit.id
@@ -215,7 +215,7 @@ export default function Home() {
         );
         setToast({
           tone: 'error',
-          message: `Board generation for “${savedOutfit.name}” failed.`,
+          message: `「${savedOutfit.name}」搭配图生成失败。`,
         });
       }
 
@@ -235,7 +235,7 @@ export default function Home() {
 
   const handleGenerateTryOn = useCallback(async (outfit: Outfit) => {
     if (!defaultTemplate) {
-      alert('Please upload and set a default template before generating a try-on preview.');
+      alert("请先上传人物照片并设为默认，再生成试穿图。");
       return;
     }
 
@@ -252,7 +252,7 @@ export default function Home() {
     );
     setToast({
       tone: 'info',
-      message: `Generating a try-on preview for “${outfit.name}” in the background.`,
+      message: `正在后台为「${outfit.name}」生成试穿图。`,
     });
 
     try {
@@ -262,10 +262,10 @@ export default function Home() {
       );
       setToast({
         tone: 'success',
-        message: `Try-on preview for “${updated.name}” is ready.`,
+        message: `「${updated.name}」试穿任务已提交，生成后会自动更新。`,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Try-on generation failed.';
+      const message = error instanceof Error ? error.message : "试穿图生成失败。";
       setOutfits(currentOutfits =>
         currentOutfits.map(currentOutfit =>
           currentOutfit.id === outfit.id
@@ -279,7 +279,7 @@ export default function Home() {
       );
       setToast({
         tone: 'error',
-        message: `Try-on preview for “${outfit.name}” failed: ${message}`,
+        message: `「${outfit.name}」试穿生成失败：${message}`,
       });
     }
   }, [defaultTemplate]);
@@ -298,7 +298,7 @@ export default function Home() {
     );
     setToast({
       tone: 'info',
-      message: `Generating a board for “${outfit.name}” in the background.`,
+      message: `正在后台为「${outfit.name}」生成搭配图。`,
     });
 
     try {
@@ -307,7 +307,7 @@ export default function Home() {
         currentOutfits.map(currentOutfit => (currentOutfit.id === updated.id ? updated : currentOutfit)),
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Board generation failed.';
+      const message = error instanceof Error ? error.message : "搭配图生成失败。";
       setOutfits(currentOutfits =>
         currentOutfits.map(currentOutfit =>
           currentOutfit.id === outfit.id
@@ -321,7 +321,7 @@ export default function Home() {
       );
       setToast({
         tone: 'error',
-        message: `Board generation for “${outfit.name}” failed.`,
+        message: `「${outfit.name}」搭配图生成失败。`,
       });
     }
   }, []);
@@ -349,37 +349,35 @@ export default function Home() {
       outfits: outfits.length,
       tops: categoryCounts.top || 0,
       bottoms: categoryCounts.bottom || 0,
-      template: defaultTemplate?.name || 'No template yet',
+      template: defaultTemplate?.name || "还未上传人物照片",
     };
   }, [items, outfits, defaultTemplate]);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f5f7fb_0%,#eef2ff_45%,#f8fafc_100%)]">
-      <header className="border-b border-white/60 bg-white/70 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-            <div>
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Wardrobe Stylist MVP 2.0
-              </span>
-              <h1 className="mt-4 max-w-2xl font-serif text-4xl leading-tight text-slate-900">
-                Build outfits you would actually trust, not just manage clothes.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                Keep your wardrobe organized, confirm uploads quickly, and preview outfits against a more personal template instead of a generic mannequin.
-              </p>
+    <main className="wardrobe-page min-h-screen">
+      <header className="hero-header">
+        <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
+          <div className="hero-stage">
+            <div className="hero-copy">
+              <span className="sticker-label">家庭穿搭作战室 · 每天都是新篇章</span>
+              <h1>今天，<br /><span>穿出主角感。</span><i aria-hidden="true">✦</i></h1>
+              <p>打开衣柜，让灵感登场。<br />从一件心动单品，到全家人的专属穿搭。</p>
+              <div className="hero-caption"><span aria-hidden="true">↗</span> 你的衣柜 / 你的风格 / 你的主场</div>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
-              <SummaryCard label="Items" value={wardrobeSummary.items.toString()} hint={`${wardrobeSummary.tops} tops · ${wardrobeSummary.bottoms} bottoms`} />
-              <SummaryCard label="Outfits" value={wardrobeSummary.outfits.toString()} hint={wardrobeSummary.outfits > 0 ? 'Ready to refine' : 'Create your first look'} />
-              <SummaryCard label="Template" value={defaultTemplate ? 'On' : 'Off'} hint={wardrobeSummary.template} />
-              <SummaryCard label="Focus" value={activeTab === 'clothes' ? 'Closet' : 'Looks'} hint={activeTab === 'clothes' ? 'Upload and sort' : 'Preview and adjust'} />
+            <div className="hero-poster" aria-hidden="true">
+              <span className="poster-kicker">今日风格，由你定义</span>
+              <svg viewBox="0 0 300 240" fill="none"><path d="M132 64c0-29 43-29 43-2 0 17-24 21-24 39" stroke="currentColor" strokeWidth="12" strokeLinecap="square"/><path d="M151 102 267 182Q285 200 260 202H41Q19 200 35 183Z" stroke="currentColor" strokeWidth="12" strokeLinejoin="miter"/><path d="m66 38 8 21 23 3-19 14 4 23-19-14-21 10 8-22-16-17 23 1Z" fill="currentColor"/><path d="m240 91 4 13 15 4-14 5-5 15-4-15-15-5 15-4Z" fill="currentColor"/></svg>
+              <strong>好好穿衣<br /><em>自在出场！</em></strong>
+              <span className="poster-seal">穿搭<br />计划</span>
             </div>
           </div>
-
-          <div className="mt-8 flex flex-col gap-3 border-t border-slate-200/80 pt-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="inline-flex w-fit rounded-full border border-slate-200 bg-white/90 p-1 shadow-sm">
+          <div className="summary-grid">
+            <SummaryCard label="衣物收藏" value={wardrobeSummary.items.toString().padStart(2, '0')} hint={`${wardrobeSummary.tops} 件上装 · ${wardrobeSummary.bottoms} 件下装`} />
+            <SummaryCard label="搭配灵感" value={wardrobeSummary.outfits.toString().padStart(2, '0')} hint={wardrobeSummary.outfits > 0 ? '灵感随时待命' : '开启第一套搭配'} />
+            <SummaryCard label="人物照片" value={defaultTemplate ? '已就绪' : '待上传'} hint={wardrobeSummary.template} />
+          </div>
+          <div className="command-bar mt-7 flex flex-col gap-3 border-t border-slate-200/80 pt-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="wardrobe-tabs inline-flex w-fit">
               <button
                 onClick={() => setActiveTab('clothes')}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
@@ -388,7 +386,7 @@ export default function Home() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Clothes ({items.length})
+                我的衣柜 <span>{items.length}</span>
               </button>
               <button
                 onClick={() => setActiveTab('outfits')}
@@ -398,13 +396,13 @@ export default function Home() {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Outfits ({outfits.length})
+                搭配灵感 <span>{outfits.length}</span>
               </button>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <Link href="/settings" className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
-                AI 设置
+                主题与设置
               </Link>
               {activeTab === 'clothes' ? (
                 <>
@@ -416,7 +414,7 @@ export default function Home() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Add Item
+                    添加衣物
                   </button>
                 </>
               ) : (
@@ -425,7 +423,7 @@ export default function Home() {
                     onClick={() => setIsTemplateModalOpen(true)}
                     className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
                   >
-                    👤 Manage Template
+                    人物照片
                   </button>
                   <button
                     onClick={handleAddOutfit}
@@ -434,7 +432,7 @@ export default function Home() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Create Outfit
+                    创建搭配
                   </button>
                 </>
               )}
@@ -445,7 +443,7 @@ export default function Home() {
 
       {/* Filter Section (only for clothes tab) */}
       {activeTab === 'clothes' && (
-        <section className="border-b border-white/60 bg-white/50">
+        <section className="filter-section">
           <div className="max-w-6xl mx-auto px-6 py-4">
             <FilterBar
               selectedCategory={selectedCategory}
@@ -464,12 +462,12 @@ export default function Home() {
           <>
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Closet</p>
+                <p className="collection-heading">衣物档案</p>
                 <div className="text-sm text-slate-600">
-                  <span className="font-medium text-slate-900">{filteredItems.length}</span> visible items
+                  <span className="font-medium text-slate-900">{filteredItems.length}</span> 件衣物
                 {(selectedCategory || selectedSeason) && (
                     <span className="ml-2 text-slate-500">
-                    (filtered from {items.length} total)
+                    （已筛选，共 {items.length} 件）
                   </span>
                 )}
                 </div>
@@ -484,20 +482,20 @@ export default function Home() {
           </>
         ) : (
           <>
-            <div className="mb-6 flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/75 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <div className="studio-intro mb-6 flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/75 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Outfit Studio</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">搭配工作室</p>
                 <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                  {outfits.length > 0 ? 'Review and compare generated overview boards.' : 'Start building looks from the pieces you already trust.'}
+                  {outfits.length > 0 ? "把穿搭灵感，变成今日主角。" : "从一件喜欢的衣物，开始今天的搭配。"}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  This first MVP focuses on generating a board image for each look so you can judge balance and layering without fake try-on.
+                  先组合单品，生成搭配图，再用人物照片预览试穿效果。
                 </p>
               </div>
               <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-                <span className="block font-medium">Current board mode</span>
+                <span className="block font-medium">穿搭灵感进行中</span>
                 <span className="block mt-1 text-indigo-700">
-                  {outfits.length > 0 ? 'Generated board images' : 'Create your first look'}
+                  {outfits.length > 0 ? "搭配图已收藏" : "开启第一套搭配"}
                 </span>
               </div>
             </div>
@@ -522,12 +520,12 @@ export default function Home() {
         sizeClassName={activeTab === 'outfits' || editingOutfit ? 'max-w-6xl' : 'max-w-md'}
         title={
           editingItem
-            ? 'Edit Item'
+            ? "编辑衣物"
             : editingOutfit
-            ? 'Edit Outfit'
+            ? "编辑搭配"
             : activeTab === 'clothes'
-            ? 'Add New Item'
-            : 'Create New Outfit'
+            ? "添加衣物"
+            : "创建搭配"
         }
       >
         {editingItem ? (
@@ -568,7 +566,7 @@ export default function Home() {
       <Modal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
-        title="Manage Personal Template"
+        title="管理人物照片"
       >
         <PersonalTemplateManager
           onClose={() => setIsTemplateModalOpen(false)}
@@ -597,7 +595,7 @@ export default function Home() {
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm">
+    <div className="summary-card">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
       <p className="mt-1 text-xs leading-5 text-slate-500">{hint}</p>

@@ -1,5 +1,7 @@
 'use client';
 
+import { categoryLabels, seasonLabels, colorLabel } from '../lib/display-labels';
+
 import { useEffect, useState } from 'react';
 
 import { ClothingItem, Category, Season } from '../types';
@@ -66,8 +68,8 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
         <div className="text-gray-300 text-5xl mb-4">👔</div>
-        <p className="text-gray-600 font-medium text-lg">No items in your wardrobe</p>
-        <p className="text-gray-400 text-sm mt-2">Click "Add Item" to start building your collection</p>
+        <p className="text-gray-600 font-medium text-lg">这里还没有衣物</p>
+        <p className="text-gray-400 text-sm mt-2">点击「添加衣物」，让衣柜丰富起来。</p>
       </div>
     );
   }
@@ -77,16 +79,16 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
       {items.map(item => (
         <div
           key={item.id}
-          className="group bg-white rounded-2xl border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow duration-200"
+          className="wardrobe-card group min-w-0 bg-white rounded-2xl border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow duration-200"
         >
           {/* Image Preview */}
           {item.standardizedImageUrl || item.imageUrl ? (
-            <div className="mb-3 h-44 bg-gray-50 rounded-xl overflow-hidden border border-gray-200 relative">
+            <div className="garment-frame mb-3 h-44 bg-gray-50 rounded-xl overflow-hidden border border-gray-200 relative">
               <ItemImagePreview item={item} />
-              <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <div className="garment-actions absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   onClick={() => onEdit(item)}
-                  aria-label={`Edit ${item.name}`}
+                  aria-label={`编辑 ${item.name}`}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-white"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +97,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
                 </button>
                 <button
                   onClick={() => onDelete(item.id)}
-                  aria-label={`Delete ${item.name}`}
+                  aria-label={`删除 ${item.name}`}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-white"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,12 +107,12 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
               </div>
             </div>
           ) : (
-            <div className="mb-3 h-44 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-center relative">
+            <div className="garment-frame mb-3 h-44 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-center relative">
               <span className="text-gray-300 text-3xl">{getCategoryIcon(item.category)}</span>
-              <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <div className="garment-actions absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   onClick={() => onEdit(item)}
-                  aria-label={`Edit ${item.name}`}
+                  aria-label={`编辑 ${item.name}`}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-white"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +121,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
                 </button>
                 <button
                   onClick={() => onDelete(item.id)}
-                  aria-label={`Delete ${item.name}`}
+                  aria-label={`删除 ${item.name}`}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm ring-1 ring-black/5 backdrop-blur hover:bg-white"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +134,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
 
           {/* Header */}
           <div className="mb-3">
-            <h3 className="text-sm text-gray-500 leading-snug line-clamp-1">
+            <h3 title={item.name} className="text-sm text-gray-500 leading-snug line-clamp-1">
               {item.name}
             </h3>
           </div>
@@ -142,10 +144,10 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
             {/* Category & Color */}
             <div className="flex flex-wrap gap-2">
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${categoryColors[item.category]}`}>
-                {item.category}
+                {categoryLabels[item.category]}
               </span>
               <span className="px-2.5 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-100">
-                {item.color}
+                {colorLabel(item.color)}
               </span>
             </div>
 
@@ -154,10 +156,10 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
               <div className="flex flex-wrap gap-1.5">
                 {item.season.map(season => (
                   <span
-                    key={season}
+                    key={seasonLabels[season]}
                     className={`px-2 py-0.5 rounded text-xs border ${seasonColors[season]}`}
                   >
-                    {season}
+                    {seasonLabels[season]}
                   </span>
                 ))}
               </div>
@@ -175,7 +177,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
             {/* Added Date */}
             <div className="pt-2 border-t border-gray-100">
               <p className="text-xs text-gray-400">
-                Added: {new Date(item.createdAt).toISOString().split('T')[0]}
+                入柜于 {new Date(item.createdAt).toISOString().split('T')[0]}
               </p>
             </div>
           </div>

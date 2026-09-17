@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { selectedProfileId, selectProfile } from '../lib/profile-client';
+import { ThemeSelector } from './ThemePicker';
+import Link from 'next/link';
 
 type Profile = { id: string; name: string };
 
@@ -61,9 +63,10 @@ export default function ProfileSwitcher() {
   const onHome = pathname === '/';
 
   return (
-    <div className="border-b border-slate-200 bg-white px-5 py-3">
+    <div className="family-bar px-5 py-3">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center gap-3 text-sm">
+          <Link href="/" className="brand-mark" aria-label="衣柜计划首页"><span>衣</span><strong>衣柜计划<small>全家的穿搭主场</small></strong></Link>
           <label htmlFor="family-profile" className="font-semibold text-slate-700">成员衣柜</label>
           <select id="family-profile" value={activeId} disabled={busy || !profiles.length || !onHome || mode !== null}
             onChange={event => selectProfile(event.target.value)}
@@ -76,7 +79,7 @@ export default function ProfileSwitcher() {
             <button type="button" disabled={busy || !profiles.length} onClick={() => { setMode('create'); setName(''); setError(''); }} className="rounded-lg px-3 py-2 font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-50">＋ 添加成员</button>
             <button type="button" disabled={busy || !active} onClick={() => { setMode('rename'); setName(active?.name || ''); setError(''); }} className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-50 disabled:opacity-50">改名</button>
           </> : <span className="text-xs text-slate-500">返回首页可切换成员</span>}
-          <p className="text-xs text-slate-500 sm:ml-auto">分别收纳衣物与搭配 · 无需登录</p>
+          <div className="sm:ml-auto"><ThemeSelector /></div>
         </div>
         {mode && <form onSubmit={save} className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3">
           <label htmlFor="profile-name" className="text-sm text-slate-600">{mode === 'create' ? '新成员名称' : '成员名称'}</label>
