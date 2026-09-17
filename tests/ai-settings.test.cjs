@@ -74,6 +74,97 @@ test('AI settings persist privately and control the next try-on request', async 
       assert.equal((await generateTryOnImage({ templateImagePath, boardImagePath })).imageUrl, 'https://output.example/image.png');
     });
 
+    await t.test('standard Images base and full URLs use JSON with both reference photos', async () => {
+      const base = 'https://workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1';
+      const templateImagePath = join(directory, 'template.png');
+      const boardImagePath = join(directory, 'board.png');
+      for (const baseUrl of [base, `${base}/`, `${base}/images/generations`, `${base}/images/generations/`]) {
+        await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl });
+        global.fetch = async (url, options) => {
+          assert.equal(url, `${base}/images/generations`);
+          assert.equal(options.headers.Authorization, 'Bearer test-page-key');
+          const body = JSON.parse(options.body);
+          assert.equal(body.model, 'qwen-image-3.0-pro');
+          assert.equal(body.n, 1);
+          assert.equal(body.size, '1024x1536');
+          assert.equal(body.prompt.includes('Image 1'), true);
+          assert.deepEqual(body.image, [
+            `data:image/png;base64,${Buffer.from('fake-template').toString('base64')}`,
+            `data:image/png;base64,${Buffer.from('fake-board').toString('base64')}`,
+          ]);
+          assert.equal('input' in body, false);
+          assert.equal('parameters' in body, false);
+          return { ok: true, json: async () => ({ data: [{ url: 'https://output.example/token-plan.png' }] }) };
+        };
+        assert.equal((await generateTryOnImage({ templateImagePath, boardImagePath })).imageUrl, 'https://output.example/token-plan.png');
+      }
+    });
+
+    await t.test('Token Plan Qwen 3 submits once then polls on the same package host', async () => {
+      const base = 'https://token-plan.cn-beijing.maas.aliyuncs.com';
+      await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl: `${base}/compatible-mode/v1` });
+      let submissions = 0;
+      let polls = 0;
+      global.fetch = async (url, options) => {
+        assert.equal(options.headers.Authorization, 'Bearer test-page-key');
+        if (options.method === 'POST') {
+          submissions++;
+          assert.equal(url, `${base}/api/v1/services/aigc/image-generation/generation`);
+          assert.equal(options.headers['X-DashScope-Async'], 'enable');
+          const body = JSON.parse(options.body);
+          assert.equal(body.model, 'qwen-image-3.0-pro');
+          assert.equal(body.parameters.size, '1024*1536');
+          assert.equal(body.input.messages[0].content.length, 3);
+          return { ok: true, json: async () => ({ output: { task_id: 'test-task', task_status: 'PENDING' } }) };
+        }
+        polls++;
+        assert.equal(url, `${base}/api/v1/tasks/test-task`);
+        return { ok: true, json: async () => ({ output: polls === 1
+          ? { task_status: 'RUNNING' }
+          : { task_status: 'SUCCEEDED', choices: [{ message: { content: [{ text: 'done' }, { image: 'https://output.example/async.png' }] } }] }
+        }) };
+      };
+      const result = await generateTryOnImage({ templateImagePath: join(directory, 'template.png'), boardImagePath: join(directory, 'board.png') });
+      assert.equal(result.imageUrl, 'https://output.example/async.png');
+      assert.equal(submissions, 1);
+      assert.equal(polls, 2);
+
+      const { resolveImageEndpoint } = require(join(directory, 'compiled/image-endpoint.js'));
+      assert.deepEqual(resolveImageEndpoint(`${base}/compatible-mode/v1/`, 'qwen-image-2.0-pro'), {
+        url: `${base}/api/v1/services/aigc/multimodal-generation/generation`, protocol: 'dashscope',
+      });
+      assert.equal(resolveImageEndpoint(`${base}/api/v1/services/aigc/image-generation/generation/`, 'qwen-image-3.0-pro').protocol, 'dashscope-async');
+    });
+
+    await t.test('async task failures stop polling and do not submit another generation', async () => {
+      const paths = { templateImagePath: join(directory, 'template.png'), boardImagePath: join(directory, 'board.png') };
+      for (const status of ['FAILED', 'CANCELED', 'UNKNOWN']) {
+        let calls = 0;
+        global.fetch = async () => {
+          calls++;
+          return { ok: true, json: async () => ({ output: calls === 1
+            ? { task_id: 'failed-task', task_status: 'PENDING' }
+            : { task_status: status, message: 'test failure' }
+          }) };
+        };
+        await assert.rejects(generateTryOnImage(paths), /试穿任务失败：test failure/);
+        assert.equal(calls, 2);
+      }
+      global.fetch = async () => ({ ok: true, json: async () => ({ output: {} }) });
+      await assert.rejects(generateTryOnImage(paths), /没有返回任务编号/);
+    });
+
+    await t.test('Images error responses and missing output produce readable errors', async () => {
+      await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl: 'https://workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1' });
+      const paths = { templateImagePath: join(directory, 'template.png'), boardImagePath: join(directory, 'board.png') };
+      global.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'invalid test key' } }) });
+      await assert.rejects(generateTryOnImage(paths), /invalid test key/);
+      global.fetch = async () => ({ ok: false, status: 502, json: async () => { throw new SyntaxError(); } });
+      await assert.rejects(generateTryOnImage(paths), /HTTP 502/);
+      global.fetch = async () => ({ ok: true, json: async () => ({ data: [] }) });
+      await assert.rejects(generateTryOnImage(paths), /没有返回图片/);
+    });
+
     await t.test('reset restores environment; missing keys and corrupt files fail clearly', async () => {
       const result = await settings.resetAiSettings();
       assert.equal(result.model, 'environment-model');

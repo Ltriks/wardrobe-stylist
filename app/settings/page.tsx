@@ -103,12 +103,12 @@ export default function SettingsPage() {
               <div>
                 <label htmlFor="model" className="text-sm font-medium text-slate-800">模型名称</label>
                 <input id="model" required maxLength={200} value={model} onChange={event => setModel(event.target.value)} placeholder="qwen-image-2.0-pro" spellCheck={false} className={fieldClass} />
-                <p className="mt-2 text-xs leading-5 text-slate-500">填写支持当前 DashScope 多模态图像生成接口的模型名称。</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Token Plan 可使用 qwen-image-3.0-pro；旧版 DashScope 接口仍可使用对应的图像编辑模型。</p>
               </div>
               <div>
                 <label htmlFor="base-url" className="text-sm font-medium text-slate-800">接口地址</label>
                 <input id="base-url" type="url" required maxLength={2048} value={baseUrl} onChange={event => setBaseUrl(event.target.value)} spellCheck={false} aria-describedby="url-help" className={fieldClass} />
-                <p id="url-help" className="mt-2 text-xs leading-5 text-slate-500">填写完整的 HTTPS 请求地址，并与密钥所属地域一致。试穿时会向此地址发送密钥、人物模板图和搭配图。</p>
+                <p id="url-help" className="mt-2 text-xs leading-5 text-slate-500">可填写 Token Plan 的 /compatible-mode/v1 基础地址，系统会按模型选择专用图片接口；也支持完整的 DashScope 或 Images 图片接口。请与密钥所属地域一致。试穿时会向此服务发送密钥、人物照片和搭配图。</p>
               </div>
               <div className="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <button type="button" disabled={!settings.hasSavedSettings} onClick={() => void persist(true)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">恢复环境配置</button>

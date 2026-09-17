@@ -36,7 +36,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### AI settings page
 
-Open **AI 设置** from the home page (or `/settings`) to configure the try-on API key, model, and full HTTPS endpoint. Saving takes effect for the next generation without restarting. A blank key preserves the current key. **恢复环境配置** removes page overrides and restores environment/default settings.
+Open **主题与设置** from the home page (or `/settings`) to configure the try-on API key, model, and HTTPS endpoint. Saving takes effect for the next generation without restarting. A blank key preserves the current key. **恢复环境配置** removes page overrides and restores environment/default settings.
+
+For Alibaba Token Plan, use its package key, model `qwen-image-3.0-pro`, and base URL `https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`. The app selects the dedicated DashScope asynchronous image endpoint and polls for completion on the same package host. Qwen Image 2 uses the synchronous multimodal endpoint. Standard (non-Token Plan) Images-compatible base URLs are completed with `/images/generations`; full DashScope endpoints remain supported. Both reference photos are sent as Base64 data URLs, so localhost does not need to be publicly accessible. See the [Qwen Image 3 API reference](https://help.aliyun.com/zh/model-studio/qwen-image-generation-and-editing-api-reference) and [Token Plan multimodal guide](https://help.aliyun.com/zh/model-studio/token-plan-multimodal-gen).
 
 Page settings are stored server-side in `data/ai-settings.json` (ignored by Git, owner-only file permissions on Unix). Stored keys are never returned by the settings API. `.env.local` remains the fallback and is not modified. Use only trusted DashScope-compatible endpoints: try-on requests send the key and reference images to the configured endpoint. The app is intended for trusted local use; it has no user authentication.
 
