@@ -7,6 +7,7 @@ interface TryOnPreviewProps {
   expanded?: boolean;
   mode?: 'board' | 'tryOn';
   actionSlot?: React.ReactNode;
+  controlsSlot?: React.ReactNode;
   onGenerate?: () => Promise<void>;
   generateDisabledReason?: string;
 }
@@ -16,6 +17,7 @@ export default function TryOnPreview({
   expanded = false,
   mode = 'board',
   actionSlot,
+  controlsSlot,
   onGenerate,
   generateDisabledReason,
 }: TryOnPreviewProps) {
@@ -34,6 +36,7 @@ export default function TryOnPreview({
           {actionSlot}
         </div>
       )}
+      {controlsSlot && <div className="border-b border-slate-200 px-4 py-3">{controlsSlot}</div>}
       {showNotice && (
         <div
           role="status"

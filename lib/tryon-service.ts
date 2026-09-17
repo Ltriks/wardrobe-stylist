@@ -42,6 +42,7 @@ export async function executeTryOnJob(outfitId: string) {
   const { imageUrl, prompt } = await generateTryOnImage({
     templateImagePath: templateAsset.absolutePath,
     boardImagePath: boardAsset.absolutePath,
+    clothingFit: outfit.pantsFit ?? 'original',
   });
 
   const generatedImage = await fetch(imageUrl);
@@ -59,6 +60,7 @@ export async function executeTryOnJob(outfitId: string) {
     tryOnImageUrl: publicAssetUrl('tryons', filename),
     tryOnStatus: 'success',
     tryOnPrompt: prompt,
+    tryOnFit: outfit.pantsFit ?? 'original',
     tryOnError: null,
   });
 

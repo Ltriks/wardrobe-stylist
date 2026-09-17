@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { readAiSettings } from './ai-settings';
 import { resolveImageEndpoint } from './image-endpoint';
+import { ClothingFit, clothingFitPrompt, clothingFitNegativePrompt } from './tryon-fit';
 
 async function readResponse(response: Response) {
   const payload = await response.json().catch(() => {
@@ -62,12 +63,13 @@ async function encodeImageAsDataUrl(filePath: string) {
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
-export function buildTryOnPrompt() {
+export function buildTryOnPrompt(clothingFit: ClothingFit = 'original') {
   return [
     'Use Image 1 as the model reference and keep the same person, facial identity, hair, and pose.',
     'Use Image 2 as the outfit board reference.',
     'Generate a realistic fashion try-on preview where the person from Image 1 wears the outfit shown in Image 2.',
     'Preserve the overall colors, layering, silhouette, and styling direction from the board.',
+    clothingFitPrompt(clothingFit),
     'Keep the result natural, editorial, and believable.',
     'Do not add extra garments, extra accessories, duplicate clothing pieces, text, or collage elements.',
     'Keep the background clean and simple.',
@@ -75,6 +77,7 @@ export function buildTryOnPrompt() {
 }
 
 type GenerateTryOnOptions = {
+  clothingFit?: ClothingFit;
   templateImagePath: string;
   boardImagePath: string;
   prompt?: string;
@@ -83,7 +86,8 @@ type GenerateTryOnOptions = {
 export async function generateTryOnImage({
   templateImagePath,
   boardImagePath,
-  prompt = buildTryOnPrompt(),
+  clothingFit = 'original',
+  prompt = buildTryOnPrompt(clothingFit),
 }: GenerateTryOnOptions): Promise<{ imageUrl: string; prompt: string }> {
   const { apiKey, baseUrl, model } = await readAiSettings();
   if (!apiKey) {
@@ -102,7 +106,7 @@ export async function generateTryOnImage({
     watermark: false,
     size: endpoint.protocol === 'images' ? '1024x1536' : '1024*1536',
     negative_prompt:
-      'low resolution, blurry, distorted anatomy, duplicated limbs, extra garments, extra accessories, collage, text, watermark, cut off body, deformed clothing',
+      'low resolution, blurry, distorted anatomy, duplicated limbs, extra garments, extra accessories, collage, text, watermark, cut off body, deformed clothing' + clothingFitNegativePrompt(clothingFit),
   };
   // Qwen Image 3 uses JSON /images/generations for both generation and editing.
   // Send the local photos as data URLs; Alibaba does not need access to localhost.

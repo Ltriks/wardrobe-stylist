@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ClothingFit, clothingFitLabels } from '../lib/tryon-fit';
 import { ClothingItem, Category, Season, ClothingItemFormData, Outfit, OutfitFormData, PendingItem, PersonalTemplate } from './types';
 import { ClothingForm, ClothingList, FilterBar, Modal, OutfitForm, OutfitList, BatchUploadButton, PersonalTemplateManager } from './components';
 import {
@@ -231,6 +232,16 @@ export default function Home() {
     setEditingItem(null);
     setEditingOutfit(null);
     setIsSubmittingOutfit(false);
+  }, []);
+
+  const handleChangeClothingFit = useCallback(async (outfit: Outfit, pantsFit: ClothingFit) => {
+    try {
+      const updated = await updateOutfitApi(outfit.id, { pantsFit });
+      setOutfits(current => current.map(item => item.id === updated.id ? updated : item));
+      setToast({ tone: 'success', message: `已保存「${clothingFitLabels[pantsFit]}」，下次生成试穿图时生效。` });
+    } catch (error) {
+      setToast({ tone: 'error', message: error instanceof Error ? error.message : '版型保存失败，请重试。' });
+    }
   }, []);
 
   const handleGenerateTryOn = useCallback(async (outfit: Outfit) => {
@@ -502,6 +513,7 @@ export default function Home() {
                 onEdit={handleEditOutfit}
                 onDelete={handleDeleteOutfit}
                 onGenerateTryOn={handleGenerateTryOn}
+                onChangeClothingFit={handleChangeClothingFit}
               />
           </>
         )}

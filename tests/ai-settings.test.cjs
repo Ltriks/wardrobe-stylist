@@ -100,6 +100,31 @@ test('AI settings persist privately and control the next try-on request', async 
       }
     });
 
+    await t.test('each fit changes the actual outbound prompt and negative prompt in both protocols', async () => {
+      const fits = { original: 'original garment cuts', natural: 'moderate ease', loose: 'generous room' };
+      for (const imagesProtocol of [true, false]) {
+        await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl: imagesProtocol ? 'https://workspace.example/v1' : 'https://workspace.example/generation' });
+        for (const [pantsFit, expected] of Object.entries(fits)) {
+          let sentPrompt;
+          global.fetch = async (url, options) => {
+            const body = JSON.parse(options.body);
+            sentPrompt = imagesProtocol ? body.prompt : body.input.messages[0].content[2].text;
+            const parameters = imagesProtocol ? body : body.parameters;
+            assert.ok(sentPrompt.includes(expected));
+            assert.ok(sentPrompt.includes('tops, outerwear, and bottoms'));
+            assert.equal(sentPrompt.includes('only to trousers'), false);
+            assert.ok(sentPrompt.includes('do not slim, lengthen, or reshape the body'));
+            assert.equal(parameters.negative_prompt.includes('skin-tight trousers'), pantsFit !== 'original');
+            assert.equal(parameters.negative_prompt.includes('skin-tight shirts'), pantsFit !== 'original');
+            assert.equal(sentPrompt.includes('takes priority over the reference garment silhouettes'), pantsFit !== 'original');
+            return { ok: true, json: async () => imagesProtocol ? { data: [{ url: 'https://output.example/fit.png' }] } : { output: { choices: [{ message: { content: [{ image: 'https://output.example/fit.png' }] } }] } } };
+          };
+          const result = await generateTryOnImage({ templateImagePath: join(directory, 'template.png'), boardImagePath: join(directory, 'board.png'), clothingFit: pantsFit });
+          assert.equal(result.prompt, sentPrompt);
+        }
+      }
+    });
+
     await t.test('Token Plan Qwen 3 submits once then polls on the same package host', async () => {
       const base = 'https://token-plan.cn-beijing.maas.aliyuncs.com';
       await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl: `${base}/compatible-mode/v1` });

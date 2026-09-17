@@ -17,7 +17,7 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
   try {
     await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');
     const schema = await readFile(join(root, 'prisma/schema.prisma'), 'utf8');
-    const legacySchema = schema.replace(/^.*profileId.*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '');
+    const legacySchema = schema.replace(/^.*profileId.*\n/gm, '').replace(/^.*(?:pantsFit|tryOnFit).*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '');
     const legacyPath = join(directory, 'legacy.prisma');
     await writeFile(legacyPath, legacySchema);
     execFileSync(process.execPath, [join(root, 'node_modules/prisma/build/index.js'), 'db', 'push', '--schema', legacyPath, '--skip-generate'], { stdio: 'pipe' });
@@ -35,7 +35,7 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
 
     const compiled = join(directory, 'compiled');
     await mkdir(compiled);
-    for (const filename of ['db', 'profile-context', 'wardrobe-store']) {
+    for (const filename of ['db', 'profile-context', 'wardrobe-store', 'tryon-fit']) {
       const source = await readFile(join(root, `lib/${filename}.ts`), 'utf8');
       await writeFile(join(compiled, `${filename}.js`), ts.transpileModule(source, {
         compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -46,7 +46,7 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
     const store = require(join(compiled, 'wardrobe-store.js'));
     const { runWithProfile, currentProfileId } = require(join(compiled, 'profile-context.js'));
     const as = (id, action) => runWithProfile(id, action);
-    await db.wardrobeProfile.create({ data: { id: 'child', name: '儿子' } });
+    await db.wardrobeProfile.create({ data: { id: 'child', name: '儿子', defaultPantsFit: 'natural' } });
     let childItem;
     let childOutfit;
 
@@ -80,6 +80,27 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
       assert.equal(await as('default', () => store.updateOutfitTryOnState(childOutfit.id, { tryOnStatus: 'success' })), null);
       assert.equal(await as('default', () => store.removeOutfit(childOutfit.id)), false);
       assert.equal((await as('child', store.listOutfits)).length, 1);
+    });
+
+    await t.test('fit preferences persist per outfit, inherit member defaults, and preserve existing images', async () => {
+      assert.equal((await as('default', store.listOutfits))[0].pantsFit, 'original');
+      assert.equal(childOutfit.pantsFit, 'natural');
+      await as('child', () => store.updateOutfitBoardState(childOutfit.id, { boardStatus: 'success', boardImageUrl: '/uploads/board.png' }));
+      await as('child', () => store.updateOutfitTryOnState(childOutfit.id, { tryOnStatus: 'success', tryOnImageUrl: '/uploads/old.png', tryOnFit: 'natural', tryOnPrompt: 'old prompt' }));
+      const changed = await as('child', () => store.updateOutfitRecord(childOutfit.id, { pantsFit: 'loose' }));
+      assert.equal(changed.pantsFit, 'loose');
+      assert.equal(changed.tryOnFit, 'natural');
+      assert.equal(changed.tryOnImageUrl, '/uploads/old.png');
+      assert.equal(changed.boardImageUrl, '/uploads/board.png');
+      assert.equal((await as('child', () => store.getOutfitRecord(childOutfit.id))).pantsFit, 'loose');
+      assert.equal(await as('default', () => store.updateOutfitRecord(childOutfit.id, { pantsFit: 'original' })), null);
+      for (const pantsFit of ['skinny', '', null, 1]) {
+        await assert.rejects(as('child', () => store.updateOutfitRecord(childOutfit.id, { pantsFit })), /服装版型/);
+      }
+      await as('child', () => store.updateOutfitTryOnState(childOutfit.id, { tryOnStatus: 'generating' }));
+      await assert.rejects(as('child', () => store.updateOutfitRecord(childOutfit.id, { pantsFit: 'original' })), /生成中/);
+      await as('child', () => store.updateOutfitTryOnState(childOutfit.id, { tryOnStatus: 'success', tryOnFit: 'loose' }));
+      assert.equal((await as('child', () => store.getOutfitRecord(childOutfit.id))).tryOnFit, 'loose');
     });
 
     await t.test('each member has an independent default personal template', async () => {
@@ -130,6 +151,41 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
     if (db) await db.$disconnect();
     if (originalDatabaseUrl === undefined) delete process.env.WARDROBE_DATABASE_URL;
     else process.env.WARDROBE_DATABASE_URL = originalDatabaseUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('upgrading existing family wardrobes seeds fit defaults once without changing old results', async () => {
+  const root = process.cwd();
+  const directory = await mkdtemp(join(tmpdir(), 'wardrobe-fit-upgrade-'));
+  const databaseUrl = `file:${join(directory, 'dev.db')}`;
+  const db = new PrismaClient({ datasourceUrl: databaseUrl });
+  try {
+    await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');
+    const schema = (await readFile(join(root, 'prisma/schema.prisma'), 'utf8')).replace(/^.*(?:pantsFit|tryOnFit|defaultPantsFit).*\n/gm, '');
+    await writeFile(join(directory, 'legacy.prisma'), schema);
+    execFileSync(process.execPath, [join(root, 'node_modules/prisma/build/index.js'), 'db', 'push', '--schema', join(directory, 'legacy.prisma'), '--skip-generate'], { stdio: 'pipe' });
+    await db.$executeRawUnsafe("INSERT INTO WardrobeProfile (id,name) VALUES ('child','儿子'),('default','默认衣柜')");
+    for (const profile of ['child', 'default']) {
+      await db.$executeRawUnsafe("INSERT INTO Outfit (id,profileId,name,season,tryOnImageUrl,tryOnStatus,tryOnPrompt,createdAt,updatedAt) VALUES (?,?,?,'[]','/uploads/old.png','success','original prompt',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", profile, profile, profile);
+    }
+    const prepare = () => execFileSync(process.execPath, [join(root, 'scripts/prepare-profiles.mjs'), '--skip-generate'], { cwd: directory, env: { ...process.env, WARDROBE_DATABASE_URL: databaseUrl }, stdio: 'pipe' });
+    prepare();
+    const child = await db.outfit.findUnique({ where: { id: 'child' } });
+    assert.equal(child.pantsFit, 'natural');
+    assert.equal(child.tryOnFit, 'original');
+    assert.equal(child.tryOnImageUrl, '/uploads/old.png');
+    assert.equal(child.tryOnPrompt, 'original prompt');
+    assert.equal((await db.outfit.findUnique({ where: { id: 'default' } })).pantsFit, 'original');
+    assert.equal((await db.wardrobeProfile.findUnique({ where: { id: 'child' } })).defaultPantsFit, 'natural');
+    await db.outfit.update({ where: { id: 'child' }, data: { pantsFit: 'loose' } });
+    await db.wardrobeProfile.update({ where: { id: 'child' }, data: { name: '果果' } });
+    prepare();
+    assert.equal((await db.outfit.findUnique({ where: { id: 'child' } })).pantsFit, 'loose');
+    assert.equal((await db.wardrobeProfile.findUnique({ where: { id: 'child' } })).defaultPantsFit, 'natural');
+    assert.equal((await readdir(join(directory, 'data/backups'))).length, 1);
+  } finally {
+    await db.$disconnect();
     await rm(directory, { recursive: true, force: true });
   }
 });

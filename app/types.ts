@@ -1,4 +1,5 @@
 // Core types for Wardrobe Stylist MVP
+import type { ClothingFit } from '../lib/tryon-fit';
 
 export type Category = 'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory' | 'other';
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
@@ -37,6 +38,9 @@ export interface Outfit {
   tryOnStatus?: TryOnStatus;
   tryOnPrompt?: string;
   tryOnError?: string;
+  // Legacy storage/API name; this preference now applies to all clothing.
+  pantsFit?: ClothingFit;
+  tryOnFit?: ClothingFit;
   occasion?: string;
   season?: Season[];
   notes?: string;
@@ -68,6 +72,7 @@ export interface ClothingItemFormData {
 
 // Form data for creating/updating outfits
 export interface OutfitFormData {
+  pantsFit?: ClothingFit;
   name: string;
   itemIds: string[];
   boardImageUrl?: string;

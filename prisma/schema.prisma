@@ -36,6 +36,8 @@ model Outfit {
   tryOnStatus   String       @default("idle")
   tryOnPrompt   String?
   tryOnError    String?
+  pantsFit      String       @default("original")
+  tryOnFit      String?
   occasion      String?
   season        String
   notes         String?
@@ -99,5 +101,6 @@ model PendingUploadItem {
 model WardrobeProfile {
   id        String   @id @default(cuid())
   name      String   @unique
+  defaultPantsFit String @default("original")
   createdAt DateTime @default(now())
 }

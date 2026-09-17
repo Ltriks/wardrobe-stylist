@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { Outfit, ClothingItem } from '../types';
 import TryOnPreview from './TryOnPreview';
 import Modal from './Modal';
+import ClothingFitControl from './ClothingFitControl';
+import { ClothingFit } from '../../lib/tryon-fit';
 
 interface OutfitListProps {
   outfits: Outfit[];
@@ -15,6 +17,7 @@ interface OutfitListProps {
   onEdit: (outfit: Outfit) => void;
   onDelete: (id: string) => void;
   onGenerateTryOn: (outfit: Outfit) => Promise<void>;
+  onChangeClothingFit: (outfit: Outfit, fit: ClothingFit) => Promise<void>;
 }
 
 export default function OutfitList({
@@ -25,10 +28,29 @@ export default function OutfitList({
   onEdit,
   onDelete,
   onGenerateTryOn,
+  onChangeClothingFit,
 }: OutfitListProps) {
   const [openOutfitId, setOpenOutfitId] = useState<string | null>(null);
   const [cardPreviewModes, setCardPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
   const [detailPreviewModes, setDetailPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
+  const [savingFitIds, setSavingFitIds] = useState<string[]>([]);
+
+  const renderFitControl = (outfit: Outfit) => (
+    <ClothingFitControl
+      outfit={outfit}
+      saving={savingFitIds.includes(outfit.id)}
+      hasDefaultTemplate={hasDefaultTemplate}
+      onGenerate={() => onGenerateTryOn(outfit)}
+      onChange={async fit => {
+        setSavingFitIds(current => [...current, outfit.id]);
+        try {
+          await onChangeClothingFit(outfit, fit);
+        } finally {
+          setSavingFitIds(current => current.filter(id => id !== outfit.id));
+        }
+      }}
+    />
+  );
 
   if (outfits.length === 0) {
     return (
@@ -41,9 +63,7 @@ export default function OutfitList({
   }
 
   const openOutfit = outfits.find(outfit => outfit.id === openOutfitId) ?? null;
-  const openCanShowTryOn = openOutfit
-    ? Boolean(openOutfit.tryOnImageUrl || openOutfit.tryOnStatus === 'generating' || openOutfit.tryOnStatus === 'failed')
-    : false;
+  const openPreviewMode = openOutfit ? detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board') : 'board';
 
   return (
     <>
@@ -92,7 +112,8 @@ export default function OutfitList({
                     expanded={false}
                     mode={cardPreviewMode}
                     onGenerate={() => cardPreviewMode === 'tryOn' ? onGenerateTryOn(outfit) : onGenerateBoard(outfit)}
-                    generateDisabledReason={cardPreviewMode === 'tryOn' && !hasDefaultTemplate ? '请先通过「人物照片」上传照片并设为默认。' : undefined}
+                    generateDisabledReason={cardPreviewMode === 'tryOn' ? savingFitIds.includes(outfit.id) ? '正在保存版型，请稍候。' : !hasDefaultTemplate ? '请先通过「人物照片」上传照片并设为默认。' : undefined : undefined}
+                    controlsSlot={cardPreviewMode === 'tryOn' ? renderFitControl(outfit) : undefined}
                     actionSlot={
                       <div role="group" aria-label={`${outfit.name} 预览切换`} className="flex rounded-lg bg-slate-100 p-1">
                         {(['board', 'tryOn'] as const).map(mode => (
@@ -198,13 +219,16 @@ export default function OutfitList({
               <TryOnPreview
                 outfit={openOutfit}
                 expanded={true}
-                mode={detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')}
+                mode={openPreviewMode}
+                onGenerate={openPreviewMode === 'board' ? () => onGenerateBoard(openOutfit) : !openOutfit.tryOnImageUrl ? () => onGenerateTryOn(openOutfit) : undefined}
+                generateDisabledReason={openPreviewMode === 'tryOn' ? savingFitIds.includes(openOutfit.id) ? '正在保存版型，请稍候。' : !hasDefaultTemplate ? '请先通过「人物照片」上传照片并设为默认。' : undefined : undefined}
+                controlsSlot={(openPreviewMode) === 'tryOn' ? renderFitControl(openOutfit) : undefined}
                 actionSlot={
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'board' }))}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
-                        (detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'board'
+                        (openPreviewMode) === 'board'
                           ? 'bg-slate-900 text-white hover:bg-slate-800'
                           : 'border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-md'
                       }`}
@@ -212,41 +236,17 @@ export default function OutfitList({
                       <span className="text-[11px] leading-none">▦</span>
                       搭配图
                     </button>
-                    {((!openOutfit.boardImageUrl && openOutfit.boardStatus !== 'generating') || openOutfit.boardStatus === 'failed') && (
-                      <button
-                        onClick={async () => {
-                          setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'board' }));
-                          await onGenerateBoard(openOutfit);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-xs font-semibold text-amber-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
-                      >
-                        <span className="text-[11px] leading-none">↻</span>
-                        {openOutfit.boardStatus === 'failed' ? "重新生成搭配图" : "生成搭配图"}
-                      </button>
-                    )}
+
                     <button
-                      onClick={async () => {
-                        setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'tryOn' }));
-                        if ((!openOutfit.tryOnImageUrl || openOutfit.tryOnStatus === 'failed') && openOutfit.tryOnStatus !== 'generating') {
-                          await onGenerateTryOn(openOutfit);
-                        }
-                      }}
+                      onClick={() => setDetailPreviewModes(current => ({ ...current, [openOutfit.id]: 'tryOn' }))}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
-                        (detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
+                        (openPreviewMode) === 'tryOn'
                           ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                           : 'border border-emerald-200 bg-white text-emerald-700 hover:-translate-y-0.5 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-md'
                       } disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:translate-y-0 disabled:hover:shadow-sm`}
                     >
                       <span className="text-[11px] leading-none">✦</span>
-                      {openOutfit.tryOnStatus === 'generating'
-                        ? "生成中…"
-                        : openOutfit.tryOnStatus === 'failed'
-                          ? "重新生成试穿"
-                        : openCanShowTryOn
-                          ? "试穿图"
-                          : hasDefaultTemplate
-                            ? "生成试穿图"
-                            : "请先上传人物照片"}
+                      试穿图
                     </button>
                   </div>
                 }
@@ -257,7 +257,7 @@ export default function OutfitList({
                   搭配说明
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {(detailPreviewModes[openOutfit.id] ?? (openOutfit.tryOnImageUrl ? 'tryOn' : 'board')) === 'tryOn'
+                  {(openPreviewMode) === 'tryOn'
                     ? hasDefaultTemplate
                       ? "基于默认人物照片和当前搭配图，生成穿搭效果参考。"
                       : "先上传人物照片并设为默认，即可生成这套搭配的试穿参考图。"

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 
 import { prisma } from './db';
 import { currentProfileId } from './profile-context';
+import { ClothingFit, parseClothingFit } from './tryon-fit';
 import {
   ClothingItem,
   ClothingItemFormData,
@@ -90,6 +91,8 @@ function mapOutfit(record: {
   tryOnStatus: string;
   tryOnPrompt: string | null;
   tryOnError: string | null;
+  pantsFit: string;
+  tryOnFit: string | null;
   occasion: string | null;
   season: string;
   notes: string | null;
@@ -113,6 +116,8 @@ function mapOutfit(record: {
     tryOnStatus: record.tryOnStatus as TryOnStatus,
     tryOnPrompt: record.tryOnPrompt ?? undefined,
     tryOnError: record.tryOnError ?? undefined,
+    pantsFit: parseClothingFit(record.pantsFit),
+    tryOnFit: record.tryOnFit ? parseClothingFit(record.tryOnFit) : undefined,
     occasion: record.occasion ?? undefined,
     season: parseSeasonValue(record.season),
     notes: record.notes ?? undefined,
@@ -273,6 +278,8 @@ async function validateOutfitItems(itemIds: string[]) {
 
 export async function createOutfitRecord(data: OutfitFormData): Promise<Outfit> {
   await validateOutfitItems(data.itemIds);
+  const profile = await prisma.wardrobeProfile.findUnique({ where: { id: currentProfileId() } });
+  const pantsFit = parseClothingFit(data.pantsFit === undefined ? profile?.defaultPantsFit ?? 'original' : data.pantsFit);
   const outfit = await prisma.outfit.create({
     data: {
       profileId: currentProfileId(),
@@ -281,6 +288,7 @@ export async function createOutfitRecord(data: OutfitFormData): Promise<Outfit> 
       boardStatus: data.boardStatus ?? (data.boardImageUrl ? 'success' : 'idle'),
       boardError: data.boardError ?? null,
       tryOnStatus: 'idle',
+      pantsFit,
       occasion: data.occasion,
       season: stringifySeasonValue(data.season),
       notes: data.notes,
@@ -301,12 +309,17 @@ export async function createOutfitRecord(data: OutfitFormData): Promise<Outfit> 
 }
 
 export async function updateOutfitRecord(id: string, data: Partial<OutfitFormData>): Promise<Outfit | null> {
+  const pantsFit = data.pantsFit === undefined ? undefined : parseClothingFit(data.pantsFit);
   const existing = await prisma.outfit.findUnique({
     where: { id, profileId: currentProfileId() },
     include: outfitInclude,
   });
 
   if (!existing) return null;
+
+  if (pantsFit !== undefined && existing.tryOnStatus === 'generating') {
+    throw new Error('试穿图生成中，请完成后再修改版型。');
+  }
 
   if (data.itemIds !== undefined) await validateOutfitItems(data.itemIds);
 
@@ -334,8 +347,9 @@ export async function updateOutfitRecord(id: string, data: Partial<OutfitFormDat
     }
 
     await tx.outfit.update({
-      where: { id, profileId: currentProfileId() },
+      where: { id, profileId: currentProfileId(), ...(pantsFit !== undefined ? { tryOnStatus: { not: 'generating' } } : {}) },
       data: {
+        ...(pantsFit !== undefined ? { pantsFit } : {}),
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.boardImageUrl !== undefined ? { boardImageUrl: data.boardImageUrl } : {}),
         ...(data.boardStatus !== undefined ? { boardStatus: data.boardStatus } : {}),
@@ -351,6 +365,7 @@ export async function updateOutfitRecord(id: string, data: Partial<OutfitFormDat
               tryOnImageUrl: null,
               tryOnStatus: 'idle',
               tryOnPrompt: null,
+              tryOnFit: null,
               tryOnError: null,
             }
           : {}),
@@ -393,6 +408,7 @@ export async function removeOutfit(id: string): Promise<boolean> {
 export async function updateOutfitTryOnState(
   id: string,
   data: {
+    tryOnFit?: ClothingFit | null;
     tryOnImageUrl?: string | null;
     tryOnStatus?: TryOnStatus;
     tryOnPrompt?: string | null;
@@ -412,6 +428,7 @@ export async function updateOutfitTryOnState(
       ...(data.tryOnImageUrl !== undefined ? { tryOnImageUrl: data.tryOnImageUrl } : {}),
       ...(data.tryOnStatus !== undefined ? { tryOnStatus: data.tryOnStatus } : {}),
       ...(data.tryOnPrompt !== undefined ? { tryOnPrompt: data.tryOnPrompt } : {}),
+      ...(data.tryOnFit !== undefined ? { tryOnFit: data.tryOnFit } : {}),
       ...(data.tryOnError !== undefined ? { tryOnError: data.tryOnError } : {}),
     },
     include: outfitInclude,
@@ -446,6 +463,7 @@ export async function updateOutfitBoardState(
             tryOnImageUrl: null,
             tryOnStatus: 'idle',
             tryOnPrompt: null,
+            tryOnFit: null,
             tryOnError: null,
           }
         : {}),
