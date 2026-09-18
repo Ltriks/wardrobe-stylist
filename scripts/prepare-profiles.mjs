@@ -24,7 +24,9 @@ try {
     const missingFit = !outfitColumns.some(column => column.name === 'pantsFit');
     const missingResultFit = !outfitColumns.some(column => column.name === 'tryOnFit');
     const missingDefaultFit = !profileColumns.some(column => column.name === 'defaultPantsFit');
-    if (missing.length || missingFit || missingResultFit || missingDefaultFit) {
+    const missingPendingNotes = !columns[tables.indexOf('PendingUploadItem')].some(column => column.name === 'notes');
+    const missingSizes = ['ClothingItem', 'PendingUploadItem'].filter(table => !columns[tables.indexOf(table)].some(column => column.name === 'size'));
+    if (missing.length || missingFit || missingResultFit || missingDefaultFit || missingPendingNotes || missingSizes.length) {
       const backups = resolve(root, 'data/backups');
       await mkdir(backups, { recursive: true });
       const backup = join(backups, `before-wardrobe-upgrade-${Date.now()}.db`);
@@ -34,6 +36,12 @@ try {
       await prisma.$transaction(async tx => {
         for (const table of missing) {
           await tx.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN "profileId" TEXT NOT NULL DEFAULT 'default'`);
+        }
+        if (missingPendingNotes) {
+          await tx.$executeRawUnsafe('ALTER TABLE "PendingUploadItem" ADD COLUMN "notes" TEXT');
+        }
+        for (const table of missingSizes) {
+          await tx.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN "size" TEXT`);
         }
         await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "WardrobeProfile" ("id" TEXT NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "defaultPantsFit" TEXT NOT NULL DEFAULT 'original')`);
         if (profileColumns.length && missingDefaultFit) {

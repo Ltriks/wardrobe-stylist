@@ -1,7 +1,7 @@
 import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
-import { removePendingUploadItem, updatePendingUploadItem } from '@/lib/wardrobe-store';
+import { confirmPendingUploadItem, removePendingUploadItem, updatePendingUploadItem } from '@/lib/wardrobe-store';
 import { PendingItem } from '@/app/types';
 
 async function handlePATCH(
@@ -32,5 +32,9 @@ async function handleDELETE(
 }
 
 export const dynamic = 'force-dynamic';
+export const POST = withProfile(async (_request: Request, { params }: { params: { id: string } }) => {
+  const item = await confirmPendingUploadItem(params.id);
+  return item ? NextResponse.json(item, { status: 201 }) : NextResponse.json({ error: 'Pending item not found' }, { status: 404 });
+});
 export const PATCH = withProfile(handlePATCH);
 export const DELETE = withProfile(handleDELETE);

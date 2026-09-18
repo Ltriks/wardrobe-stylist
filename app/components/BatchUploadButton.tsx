@@ -1,5 +1,7 @@
 'use client';
 
+import { suggestClothingCategory } from '../../lib/clothing-categories';
+
 import { useState, useRef, useEffect } from 'react';
 import { PendingItem, Category, Season, ClothingItem } from '../types';
 import * as mobilenet from '@tensorflow-models/mobilenet';
@@ -184,12 +186,6 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
     // MobileNet returns predictions like: [{ className: 't-shirt, tee shirt', probability: 0.95 }, ...]
     // Map to our coarse categories
 
-    const topKeywords = ['shirt', 't-shirt', 'tee', 'blouse', 'top', 'tank top', 'sweater', 'hoodie', 'pullover', 'cardigan', 'tshirt'];
-    const bottomKeywords = ['pants', 'jeans', 'trousers', 'skirt', 'shorts', 'leggings', 'slacks', 'denim'];
-    const outerwearKeywords = ['jacket', 'coat', 'blazer', 'vest', 'parka', 'anorak'];
-    const shoesKeywords = ['shoe', 'sneaker', 'boot', 'sandal', 'heel', 'footwear', 'loafer', 'oxford', 'sneakers'];
-    const accessoryKeywords = ['bag', 'hat', 'cap', 'scarf', 'belt', 'glasses', 'sunglasses', 'backpack', 'handbag'];
-
     // Log raw predictions for debugging
     const rawPredictions = predictions.slice(0, 5).map(p => `${p.className} (${(p.probability * 100).toFixed(1)}%)`).join(', ');
 
@@ -197,26 +193,8 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
       const className = pred.className.toLowerCase();
       const probability = pred.probability;
 
-      // Check outerwear first (can overlap with top)
-      if (outerwearKeywords.some(k => className.includes(k))) {
-        return { category: 'outerwear', confidence: probability, rawPredictions };
-      }
-
-      if (topKeywords.some(k => className.includes(k))) {
-        return { category: 'top', confidence: probability, rawPredictions };
-      }
-
-      if (bottomKeywords.some(k => className.includes(k))) {
-        return { category: 'bottom', confidence: probability, rawPredictions };
-      }
-
-      if (shoesKeywords.some(k => className.includes(k))) {
-        return { category: 'shoes', confidence: probability, rawPredictions };
-      }
-
-      if (accessoryKeywords.some(k => className.includes(k))) {
-        return { category: 'accessory', confidence: probability, rawPredictions };
-      }
+      const category = suggestClothingCategory(className);
+      if (category !== 'other') return { category, confidence: probability, rawPredictions };
     }
 
     // If no match, use highest probability prediction as "other"
@@ -491,34 +469,7 @@ function generateSuggestedAttributes(filename: string): {
 }
 
 function determineCategory(name: string): Category {
-  const lowerName = name.toLowerCase();
-
-  // Top keywords
-  if (/\b(tshirt|t-shirt|shirt|top|blouse|tank|tee)\b/.test(lowerName)) {
-    return 'top';
-  }
-
-  // Bottom keywords
-  if (/\b(pants|jeans|trousers|bottom|skirt|shorts)\b/.test(lowerName)) {
-    return 'bottom';
-  }
-
-  // Outerwear keywords
-  if (/\b(jacket|coat|outerwear|blazer|vest|cardigan)\b/.test(lowerName)) {
-    return 'outerwear';
-  }
-
-  // Shoes keywords
-  if (/\b(shoes|sneakers|boots|sandals|heels|footwear)\b/.test(lowerName)) {
-    return 'shoes';
-  }
-
-  // Accessory keywords
-  if (/\b(bag|hat|cap|scarf|belt|glasses|accessory)\b/.test(lowerName)) {
-    return 'accessory';
-  }
-
-  return 'other';
+  return suggestClothingCategory(name);
 }
 
 function determineColor(name: string): string {

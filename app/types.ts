@@ -1,7 +1,8 @@
 // Core types for Wardrobe Stylist MVP
 import type { ClothingFit } from '../lib/tryon-fit';
 
-export type Category = 'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory' | 'other';
+import type { Category } from '../lib/clothing-categories';
+export type { Category } from '../lib/clothing-categories';
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export type BoardStatus = 'idle' | 'generating' | 'success' | 'failed';
 export type TryOnStatus = 'idle' | 'generating' | 'success' | 'failed';
@@ -11,6 +12,7 @@ export interface ClothingItem {
   name: string;
   category: Category;
   color: string;
+  size?: string;
   season: Season[];
   imageUrl?: string;
   standardizedImageUrl?: string;
@@ -63,6 +65,7 @@ export interface ClothingItemFormData {
   name: string;
   category: Category;
   color: string;
+  size?: string;
   season: Season[];
   imageUrl?: string;
   standardizedImageUrl?: string;
@@ -101,7 +104,9 @@ export interface PendingItem {
   suggestedName: string;
   suggestedCategory: Category;
   suggestedColor: string;
+  size?: string;
   suggestedSeason: Season[];
+  notes?: string;
   status: 'pending' | 'confirmed' | 'skipped';
   aiConfidence?: number; // AI confidence score (0-1)
   categorySource?: 'ai' | 'rule' | 'default'; // Source of category suggestion

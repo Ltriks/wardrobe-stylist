@@ -1,6 +1,4 @@
-export const categoryLabels: Record<string, string> = {
-  top: '上装', bottom: '下装', outerwear: '外套', shoes: '鞋履', accessory: '配饰', other: '其他',
-};
+export { categoryLabels } from '../../lib/clothing-categories';
 export const seasonLabels: Record<string, string> = { spring: '春季', summer: '夏季', autumn: '秋季', winter: '冬季' };
 export const statusLabels: Record<string, string> = { idle: '待生成', generating: '生成中', success: '已完成', failed: '生成失败' };
 const colorLabels: Record<string, string> = {

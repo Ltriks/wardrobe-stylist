@@ -13,6 +13,7 @@ model ClothingItem {
   name                 String
   category             String
   color                String
+  size                 String?
   season               String
   imageUrl             String?
   standardizedImageUrl String?
@@ -82,7 +83,9 @@ model PendingUploadItem {
   suggestedName        String
   suggestedCategory    String
   suggestedColor       String
+  size                 String?
   suggestedSeason      String
+  notes                String?
   status               String
   aiConfidence         Float?
   categorySource       String?

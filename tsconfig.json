@@ -29,6 +29,7 @@
     ".venv*",
     "public/uploads",
     "wardrobe-test-80",
+    "release",
     "dist"
   ]
 }

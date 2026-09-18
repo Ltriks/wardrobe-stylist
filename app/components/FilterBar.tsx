@@ -1,5 +1,7 @@
 'use client';
 
+import { clothingCategories } from '../../lib/clothing-categories';
+
 import { Category, Season } from '../types';
 
 interface FilterBarProps {
@@ -10,15 +12,7 @@ interface FilterBarProps {
   onClear: () => void;
 }
 
-const CATEGORIES: { value: Category | ''; label: string }[] = [
-  { value: '', label: "全部分类" },
-  { value: 'top', label: "上装" },
-  { value: 'bottom', label: "下装" },
-  { value: 'outerwear', label: "外套" },
-  { value: 'shoes', label: "鞋履" },
-  { value: 'accessory', label: "配饰" },
-  { value: 'other', label: "其他" },
-];
+const CATEGORIES: { value: Category | ''; label: string }[] = [{ value: '', label: '全部分类' }, ...clothingCategories];
 
 const SEASONS: { value: Season | ''; label: string }[] = [
   { value: '', label: "全部季节" },

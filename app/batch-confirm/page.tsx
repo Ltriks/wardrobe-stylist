@@ -1,20 +1,18 @@
 'use client';
 
+import { clothingCategories } from '../../lib/clothing-categories';
+
 import { colorLabel } from '../lib/display-labels';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PendingItem, Category, Season, ClothingItemFormData } from '../types';
-import { clearPendingBatchApi, createItemApi, deletePendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
+import { PendingItem, Category, Season } from '../types';
+import { clearPendingBatchApi, confirmPendingItemApi, fetchPendingItems, updatePendingItemApi } from '../lib/wardrobe-api';
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'top', label: "上装" },
-  { value: 'bottom', label: "下装" },
-  { value: 'outerwear', label: "外套" },
-  { value: 'shoes', label: "鞋履" },
-  { value: 'accessory', label: "配饰" },
-  { value: 'other', label: "其他" },
-];
+import ClothingSizeInput from '../components/ClothingSizeInput';
+import { createPendingDraftSaver } from '../lib/pending-draft-saver';
+
+const CATEGORIES = clothingCategories;
 
 const SEASONS: { value: Season; label: string }[] = [
   { value: 'spring', label: "春季" },
@@ -24,20 +22,46 @@ const SEASONS: { value: Season; label: string }[] = [
 ];
 
 function BatchConfirmPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const batchId = searchParams.get('batchId') || undefined;
+  return <BatchConfirmEditor key={batchId || 'empty'} batchId={batchId} />;
+}
+
+function BatchConfirmEditor({ batchId }: { batchId?: string }) {
+  const router = useRouter();
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const batchId = searchParams.get('batchId') || undefined;
+  const drafts = useRef<PendingItem[]>([]);
+  const processing = useRef(false);
+  const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const saver = useMemo(() => createPendingDraftSaver(
+    updatePendingItemApi,
+    () => setSaveError('修改尚未保存，内容已保留。请重试保存。'),
+    () => setSaveError(''),
+  ), []);
+
+  const replaceItems = (items: PendingItem[]) => {
+    drafts.current = items;
+    setPendingItems(items);
+  };
+
+  useEffect(() => {
+    const warnUnsaved = (event: BeforeUnloadEvent) => {
+      if (saver.hasUnsaved()) { event.preventDefault(); event.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', warnUnsaved);
+    return () => { saver.dispose(); window.removeEventListener('beforeunload', warnUnsaved); };
+  }, [saver]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       if (!batchId) {
         if (!cancelled) {
-          setPendingItems([]);
+          replaceItems([]);
           setIsLoading(false);
         }
         return;
@@ -47,12 +71,12 @@ function BatchConfirmPageContent() {
       try {
         const items = await fetchPendingItems(batchId);
         if (!cancelled) {
-          setPendingItems(items);
+          replaceItems(items.map(item => ({ ...item, suggestedColor: colorLabel(item.suggestedColor) })));
         }
       } catch (error) {
         if (!cancelled) {
-          console.error('Failed to load pending items:', error);
-          setPendingItems([]);
+          setError('待确认衣物加载失败，请刷新重试。');
+          replaceItems([]);
         }
       } finally {
         if (!cancelled) {
@@ -67,17 +91,20 @@ function BatchConfirmPageContent() {
   }, [batchId]);
 
   useEffect(() => {
-    const validIds = new Set(pendingItems.map(item => item.id));
+    const validIds = new Set(pendingItems.filter(item => item.status === 'pending').map(item => item.id));
     setSelectedIds(prev => prev.filter(id => validIds.has(id)));
   }, [pendingItems]);
 
-  const updateItem = async (id: string, updates: Partial<PendingItem>) => {
-    const updated = await updatePendingItemApi(id, updates);
-    setPendingItems(prev =>
-      prev.map(item =>
-        item.id === id ? updated : item
-      )
-    );
+  const updateItem = (id: string, updates: Partial<PendingItem>) => {
+    replaceItems(drafts.current.map(item => item.id === id ? { ...item, ...updates } : item));
+    saver.edit(id, updates);
+  };
+
+  const flushEdits = () => { void saver.flush().catch(() => setSaveError('修改尚未保存，内容已保留。请重试保存。')); };
+  const leavePage = async () => {
+    if (processing.current) return;
+    try { await saver.flush(); router.push('/'); }
+    catch { setSaveError('修改尚未保存，请重试保存后返回衣柜。'); }
   };
 
   const toggleSelected = (id: string) => {
@@ -92,81 +119,45 @@ function BatchConfirmPageContent() {
     setSelectedIds(allSelected ? [] : pendingIds);
   };
 
-  const applyBulkCategory = async (category: Category) => {
-    if (selectedIds.length === 0) return;
-
-    await Promise.all(
-      selectedIds.map(id =>
-        updatePendingItemApi(id, {
-          suggestedCategory: category,
-          categorySource: 'default',
-        }),
-      ),
-    );
-
-    const items = await fetchPendingItems(batchId);
-    setPendingItems(items);
+  const applyBulkCategory = (category: Category) => {
+    for (const id of selectedIds) updateItem(id, { suggestedCategory: category, categorySource: 'default' });
+    flushEdits();
   };
 
-  const toggleSeason = async (id: string, season: Season) => {
-    const item = pendingItems.find(pendingItem => pendingItem.id === id);
+  const toggleSeason = (id: string, season: Season) => {
+    const item = drafts.current.find(candidate => candidate.id === id);
     if (!item) return;
-
-    const newSeasons = item.suggestedSeason.includes(season)
-      ? item.suggestedSeason.filter(s => s !== season)
+    const suggestedSeason = item.suggestedSeason.includes(season)
+      ? item.suggestedSeason.filter(value => value !== season)
       : [...item.suggestedSeason, season];
-
-    await updateItem(id, { suggestedSeason: newSeasons });
+    updateItem(id, { suggestedSeason, seasonSource: 'default' });
   };
 
-  const confirmAll = async () => {
+  const confirmItems = async (id?: string) => {
+    if (processing.current) return;
+    if (saver.isComposing()) { setError('请先完成当前输入，再确认入柜。'); return; }
+    const items = drafts.current.filter(item => item.status === 'pending' && (!id || item.id === id));
+    if (!items.length) return;
+    if (items.some(item => !item.suggestedName.trim())) { setError('请填写衣物名称后再确认。'); return; }
+    processing.current = true;
     setIsProcessing(true);
-
-    // Process only pending items (confirmed items are already removed)
-    const itemsToProcess = pendingItems.filter(item => item.status === 'pending');
-
-    for (const item of itemsToProcess) {
-      const formData: ClothingItemFormData = {
-        name: item.suggestedName,
-        category: item.suggestedCategory,
-        color: item.suggestedColor,
-        season: item.suggestedSeason,
-        imageUrl: item.imageUrl,
-        standardizedImageUrl: item.standardizedImageUrl,
-        cutoutImageUrl: item.cutoutImageUrl,
-      };
-
-      await createItemApi(formData);
+    setError('');
+    try {
+      await saver.flush();
+      for (const item of items) {
+        await confirmPendingItemApi(item.id);
+        replaceItems(drafts.current.filter(candidate => candidate.id !== item.id));
+      }
+      if (!id) {
+        if (batchId) await clearPendingBatchApi(batchId);
+        router.push('/');
+      }
+    } catch (error) {
+      setError(`${error instanceof Error ? error.message : '确认失败，请重试。'} 已入柜的衣物不会重复添加，其余衣物可继续确认。`);
+    } finally {
+      processing.current = false;
+      setIsProcessing(false);
     }
-
-    if (batchId) {
-      await clearPendingBatchApi(batchId);
-    }
-    // Navigate back to clothes list
-    router.push('/');
-  };
-
-  const skipItem = async (id: string) => {
-    await updateItem(id, { status: 'skipped' });
-  };
-
-  const confirmItem = async (id: string) => {
-    const item = pendingItems.find(item => item.id === id);
-    if (!item) return;
-
-    // Create the clothing item immediately
-    const formData: ClothingItemFormData = {
-      name: item.suggestedName,
-      category: item.suggestedCategory,
-      color: item.suggestedColor,
-      season: item.suggestedSeason,
-      imageUrl: item.imageUrl,
-      standardizedImageUrl: item.standardizedImageUrl,
-    };
-
-    await createItemApi(formData);
-    await deletePendingItemApi(id);
-    setPendingItems(prev => prev.filter(item => item.id !== id));
   };
 
   const pendingCount = pendingItems.filter(item => item.status === 'pending').length;
@@ -183,9 +174,9 @@ function BatchConfirmPageContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-300 text-5xl mb-4">📦</div>
-          <p className="text-gray-600">没有待确认的衣物</p>
+          <p className="text-gray-600">{error || '没有待确认的衣物'}</p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => void leavePage()}
             className="mt-4 text-blue-600 hover:text-blue-800"
           >
             返回衣柜
@@ -215,18 +206,20 @@ function BatchConfirmPageContent() {
             <div className="flex gap-2">
               <button
                 onClick={toggleSelectAllPending}
+                disabled={isProcessing}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
                 {allPendingSelected ? "取消全选" : "全选"}
               </button>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => void leavePage()}
+                disabled={isProcessing}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
               >
                 取消
               </button>
               <button
-                onClick={confirmAll}
+                onClick={() => void confirmItems()}
                 disabled={pendingCount === 0 || isProcessing}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
@@ -241,7 +234,8 @@ function BatchConfirmPageContent() {
                 <button
                   key={cat.value}
                   type="button"
-                  onClick={() => void applyBulkCategory(cat.value)}
+                  onClick={() => applyBulkCategory(cat.value)}
+                  disabled={isProcessing}
                   className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   {cat.label}
@@ -249,9 +243,35 @@ function BatchConfirmPageContent() {
               ))}
             </div>
           )}
+          {selectedCount > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <span className="text-sm font-medium text-gray-700">批量设置季节：</span>
+              {[
+                { label: '春秋', value: ['spring', 'autumn'] },
+                { label: '夏季', value: ['summer'] },
+                { label: '冬季', value: ['winter'] },
+                { label: '四季', value: ['spring', 'summer', 'autumn', 'winter'] },
+                { label: '清空', value: [] },
+              ].map(preset => (
+                <button key={preset.label} type="button" disabled={isProcessing}
+                  onClick={() => {
+                    for (const id of selectedIds) updateItem(id, { suggestedSeason: preset.value as Season[], seasonSource: 'default' });
+                    flushEdits();
+                  }}
+                  className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+                >{preset.label}</button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
+      {(error || saveError) && (
+        <div role="alert" className="mx-auto max-w-6xl px-6 pt-4 text-sm text-red-700">
+          {error && <p>{error}</p>}
+          {saveError && <p>{saveError} <button type="button" disabled={isProcessing} onClick={flushEdits} className="underline">重试保存</button></p>}
+        </div>
+      )}
       {/* Items Grid */}
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -261,10 +281,13 @@ function BatchConfirmPageContent() {
               item={item}
               isSelected={selectedIds.includes(item.id)}
               onToggleSelected={() => toggleSelected(item.id)}
-              onUpdate={(updates) => void updateItem(item.id, updates)}
+              onUpdate={(updates) => updateItem(item.id, updates)}
+              disabled={isProcessing}
+              onComposition={value => saver.composition(item.id, value)}
+              onBlur={() => { saver.composition(item.id, false); flushEdits(); }}
               onToggleSeason={(season) => void toggleSeason(item.id, season)}
-              onSkip={() => void skipItem(item.id)}
-              onConfirm={() => void confirmItem(item.id)}
+              onSkip={() => { updateItem(item.id, { status: 'skipped' }); flushEdits(); }}
+              onConfirm={() => void confirmItems(item.id)}
             />
           ))}
         </div>
@@ -300,8 +323,14 @@ function PendingItemCard({
   onToggleSeason,
   onSkip,
   onConfirm,
+  disabled,
+  onComposition,
+  onBlur,
 }: {
   item: PendingItem;
+  disabled: boolean;
+  onComposition: (value: boolean) => void;
+  onBlur: () => void;
   isSelected: boolean;
   onToggleSelected: () => void;
   onUpdate: (updates: Partial<PendingItem>) => void;
@@ -333,6 +362,7 @@ function PendingItemCard({
           <input
             type="checkbox"
             checked={isSelected}
+            disabled={isSkipped || disabled}
             onChange={onToggleSelected}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
@@ -349,7 +379,7 @@ function PendingItemCard({
             ⚠️ 可能重复
           </div>
         )}
-        {item.suggestedSeason.length === 0 && <span className="absolute bottom-2 left-2 bg-white text-xs px-2 py-1">待选择季节</span>}
+        {item.suggestedSeason.length === 0 && <span className="absolute bottom-2 left-2 bg-white text-xs px-2 py-1">季节未设置</span>}
 
       </div>
 
@@ -366,24 +396,29 @@ function PendingItemCard({
       <div className="p-4 space-y-3">
         {/* Name */}
         <div>
+          <p className="mb-1 text-xs text-gray-600">衣物名称</p>
           <input
             type="text"
             aria-label="衣物名称"
             value={item.suggestedName}
             onChange={(e) => onUpdate({ suggestedName: e.target.value })}
+            onCompositionStart={() => onComposition(true)}
+            onCompositionEnd={e => { onUpdate({ suggestedName: e.currentTarget.value }); onComposition(false); }}
+            onBlur={onBlur}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSkipped}
+            disabled={isSkipped || disabled}
           />
         </div>
 
         {/* Category */}
         <div>
+          <p className="mb-1 text-xs text-gray-600">分类</p>
           <select
             aria-label="分类"
             value={item.suggestedCategory}
             onChange={(e) => onUpdate({ suggestedCategory: e.target.value as Category })}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSkipped}
+            disabled={isSkipped || disabled}
           >
             {CATEGORIES.map(cat => (
               <option key={cat.value} value={cat.value}>
@@ -395,25 +430,43 @@ function PendingItemCard({
 
         {/* Color */}
         <div>
+          <p className="mb-1 text-xs text-gray-600">颜色</p>
           <input
             type="text"
             aria-label="颜色"
-            value={colorLabel(item.suggestedColor)}
+            value={item.suggestedColor}
             onChange={(e) => onUpdate({ suggestedColor: e.target.value })}
+            onCompositionStart={() => onComposition(true)}
+            onCompositionEnd={e => { onUpdate({ suggestedColor: e.currentTarget.value }); onComposition(false); }}
+            onBlur={onBlur}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="颜色"
-            disabled={isSkipped}
+            disabled={isSkipped || disabled}
+          />
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs text-gray-600">尺码（选填）</p>
+          <ClothingSizeInput
+            value={item.size || ''}
+            onChange={e => onUpdate({ size: e.target.value })}
+            onCompositionStart={() => onComposition(true)}
+            onCompositionEnd={e => { onUpdate({ size: e.currentTarget.value }); onComposition(false); }}
+            onBlur={onBlur}
+            disabled={isSkipped || disabled}
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         {/* Season */}
+        <p className="text-xs text-gray-600">适穿季节（选填，手动多选）</p>
         <div className="flex flex-wrap gap-1">
           {SEASONS.map(season => (
             <button
               key={season.value}
               type="button"
               onClick={() => onToggleSeason(season.value)}
-              disabled={isSkipped}
+              disabled={isSkipped || disabled}
               className={`px-2 py-1 rounded text-xs font-medium transition-colors border ${
                 item.suggestedSeason.includes(season.value)
                   ? 'bg-blue-600 text-white border-blue-600'
@@ -425,18 +478,35 @@ function PendingItemCard({
           ))}
         </div>
 
+        <div>
+          <label className="mb-1 block text-xs text-gray-600" htmlFor={`notes-${item.id}`}>备注（选填）</label>
+          <textarea
+            id={`notes-${item.id}`}
+            aria-label="备注"
+            rows={3}
+            value={item.notes || ''}
+            onChange={e => onUpdate({ notes: e.target.value })}
+            onCompositionStart={() => onComposition(true)}
+            onCompositionEnd={e => { onUpdate({ notes: e.currentTarget.value }); onComposition(false); }}
+            onBlur={onBlur}
+            disabled={isSkipped || disabled}
+            placeholder="例如：材质、穿着偏好…"
+            className="w-full resize-y rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
         {/* Actions */}
         <div className="flex gap-2 pt-2">
           <button
             onClick={onSkip}
-            disabled={isSkipped}
+            disabled={isSkipped || disabled}
             className="flex-1 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             跳过
           </button>
           <button
             onClick={onConfirm}
-            disabled={isSkipped}
+            disabled={isSkipped || disabled}
             className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             确认

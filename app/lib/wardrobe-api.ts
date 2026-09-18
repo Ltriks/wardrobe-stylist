@@ -263,6 +263,12 @@ export async function deletePendingItemApi(id: string): Promise<void> {
   await parseJsonResponse(await wardrobeFetch(`/api/pending-items/${id}`, { method: 'DELETE' }));
 }
 
+export async function confirmPendingItemApi(id: string): Promise<ClothingItem> {
+  return parseClothingItem(await parseJsonResponse<JsonRecord>(
+    await wardrobeFetch(`/api/pending-items/${id}`, { method: 'POST' }),
+  ));
+}
+
 export async function clearPendingBatchApi(batchId?: string): Promise<void> {
   const query = batchId ? `?batchId=${encodeURIComponent(batchId)}` : '';
   await parseJsonResponse(await wardrobeFetch(`/api/pending-items${query}`, { method: 'DELETE' }));

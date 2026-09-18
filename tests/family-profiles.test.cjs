@@ -17,7 +17,9 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
   try {
     await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');
     const schema = await readFile(join(root, 'prisma/schema.prisma'), 'utf8');
-    const legacySchema = schema.replace(/^.*profileId.*\n/gm, '').replace(/^.*(?:pantsFit|tryOnFit).*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '');
+    const legacySchema = schema.replace(/^.*profileId.*\n/gm, '').replace(/^.*(?:pantsFit|tryOnFit).*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '')
+      .replace(/^.*size\s+String\?.*\n/gm, '')
+      .replace(/model PendingUploadItem \{[^}]*\}/, block => block.replace(/^.*notes\s+String\?.*\n/gm, ''));
     const legacyPath = join(directory, 'legacy.prisma');
     await writeFile(legacyPath, legacySchema);
     execFileSync(process.execPath, [join(root, 'node_modules/prisma/build/index.js'), 'db', 'push', '--schema', legacyPath, '--skip-generate'], { stdio: 'pipe' });
@@ -145,6 +147,30 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
       assert.equal(parent[0].id, 'legacy-outfit');
       assert.equal((await background).id, childOutfit.id);
       assert.throws(() => currentProfileId(), /选择成员/);
+    });
+
+    await t.test('batch drafts persist notes, size and manual seasons, and confirm atomically within their wardrobe', async () => {
+      const id = 'metadata-draft';
+      await as('child', () => store.createPendingUploadBatch([{ id, imageUrl: '/uploads/test.png', cutoutImageUrl: '/uploads/cutout.png', suggestedName: '旧名', suggestedCategory: 'top', suggestedColor: '白色', suggestedSeason: [], status: 'pending', notes: '初始备注', size: '80' }], 'metadata-batch'));
+      assert.equal(await as('default', () => store.confirmPendingUploadItem(id)), null);
+      await as('child', () => store.updatePendingUploadItem(id, { suggestedName: '', notes: '', size: '' }));
+      await assert.rejects(as('child', () => store.confirmPendingUploadItem(id)), /名称/);
+      const empty = (await as('child', () => store.listPendingUploadItems('metadata-batch')))[0];
+      assert.equal(empty.notes, '');
+      assert.equal(empty.size, '');
+      await as('child', () => store.updatePendingUploadItem(id, { suggestedName: '宝宝上衣', notes: '柔软棉质', size: '90/52', suggestedSeason: ['spring', 'autumn'] }));
+      const item = await as('child', () => store.confirmPendingUploadItem(id));
+      assert.equal(item.name, '宝宝上衣');
+      assert.equal(item.notes, '柔软棉质');
+      assert.equal(item.size, '90/52');
+      assert.deepEqual(item.season, ['spring', 'autumn']);
+      assert.equal(item.cutoutImageUrl, '/uploads/cutout.png');
+      assert.equal((await as('child', () => store.listPendingUploadItems('metadata-batch'))).length, 0);
+      assert.equal(await as('child', () => store.confirmPendingUploadItem(id)), null);
+      assert.equal((await as('child', store.listClothingItems)).filter(row => row.name === '宝宝上衣').length, 1);
+      const edited = await as('child', () => store.updateClothingItem(item.id, { size: '100', notes: '手动修改', season: [] }));
+      assert.equal(edited.size, '100');
+      assert.deepEqual(edited.season, []);
     });
   } finally {
     if (seed) await seed.$disconnect();

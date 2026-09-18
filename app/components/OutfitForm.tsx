@@ -1,5 +1,7 @@
 'use client';
 
+import { clothingCategories } from '../../lib/clothing-categories';
+
 import { categoryLabels, colorLabel } from '../lib/display-labels';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -20,15 +22,7 @@ interface OutfitFormProps {
   isSubmitting?: boolean;
 }
 
-const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [
-  { value: 'all', label: "全部" },
-  { value: 'top', label: "上装" },
-  { value: 'bottom', label: "下装" },
-  { value: 'outerwear', label: "外套" },
-  { value: 'shoes', label: "鞋履" },
-  { value: 'accessory', label: "配饰" },
-  { value: 'other', label: "其他" },
-];
+const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [{ value: 'all', label: '全部' }, ...clothingCategories];
 
 export default function OutfitForm({ items, initialData, onSubmit, onCancel, isSubmitting = false }: OutfitFormProps) {
   const [formData, setFormData] = useState<OutfitFormData>({

@@ -1,5 +1,7 @@
 'use client';
 
+import { categoryIcon } from '../../lib/clothing-categories';
+
 import { categoryLabels, seasonLabels, colorLabel } from '../lib/display-labels';
 
 import { useEffect, useState } from 'react';
@@ -18,6 +20,9 @@ const categoryColors: Record<Category, string> = {
   outerwear: 'bg-purple-50 text-purple-700 border-purple-100',
   shoes: 'bg-orange-50 text-orange-700 border-orange-100',
   accessory: 'bg-pink-50 text-pink-700 border-pink-100',
+  dress: 'bg-pink-50 text-pink-700 border-pink-100',
+  loungewear: 'bg-yellow-50 text-yellow-700 border-yellow-100',
+  underwear: 'bg-gray-50 text-gray-700 border-gray-100',
   other: 'bg-gray-50 text-gray-700 border-gray-100',
 };
 
@@ -149,11 +154,13 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
               <span className="px-2.5 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-100">
                 {colorLabel(item.color)}
               </span>
+              {item.size && <span title={`尺码 ${item.size}`} className="max-w-full truncate rounded border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs text-gray-600">尺码 {item.size}</span>}
             </div>
 
             {/* Seasons */}
             <div>
               <div className="flex flex-wrap gap-1.5">
+                {item.season.length === 0 && <span className="text-xs text-gray-400">季节未设置</span>}
                 {item.season.map(season => (
                   <span
                     key={seasonLabels[season]}
@@ -188,14 +195,4 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
 }
 
 // Helper function to get category icon
-function getCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    top: '👕',
-    bottom: '👖',
-    outerwear: '🧥',
-    shoes: '👟',
-    accessory: '👜',
-    other: '📦',
-  };
-  return icons[category] || '📦';
-}
+const getCategoryIcon = categoryIcon;

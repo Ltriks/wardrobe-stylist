@@ -1,3 +1,4 @@
+import { suggestClothingCategory } from '../../../lib/clothing-categories';
 import { NextRequest, NextResponse } from 'next/server';
 import { Category, Season } from '../../types';
 
@@ -93,35 +94,8 @@ function extractColorFromFilename(filename: string): string {
   return 'unknown';
 }
 
-function extractCategoryFromFilename(filename: string): Category {
-  const lowerName = filename.toLowerCase();
-
-  // Top keywords
-  if (/\b(tshirt|t-shirt|shirt|top|blouse|tank|tee)\b/.test(lowerName)) {
-    return 'top';
-  }
-
-  // Bottom keywords
-  if (/\b(pants|jeans|trousers|bottom|skirt|shorts)\b/.test(lowerName)) {
-    return 'bottom';
-  }
-
-  // Outerwear keywords
-  if (/\b(jacket|coat|outerwear|blazer|vest|cardigan)\b/.test(lowerName)) {
-    return 'outerwear';
-  }
-
-  // Shoes keywords
-  if (/\b(shoes|sneakers|boots|sandals|heels|footwear)\b/.test(lowerName)) {
-    return 'shoes';
-  }
-
-  // Accessory keywords
-  if (/\b(bag|hat|cap|scarf|belt|glasses|accessory)\b/.test(lowerName)) {
-    return 'accessory';
-  }
-
-  return 'other';
+function extractCategoryFromFilename(name: string): Category {
+  return suggestClothingCategory(name);
 }
 
 function extractSeasonFromFilename(filename: string): Season[] {

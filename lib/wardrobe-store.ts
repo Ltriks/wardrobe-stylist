@@ -44,6 +44,7 @@ function mapClothingItem(record: {
   name: string;
   category: string;
   color: string;
+  size: string | null;
   season: string;
   imageUrl: string | null;
   standardizedImageUrl: string | null;
@@ -57,6 +58,7 @@ function mapClothingItem(record: {
     name: record.name,
     category: record.category as ClothingItem['category'],
     color: record.color,
+    size: record.size ?? undefined,
     season: parseSeasonValue(record.season),
     imageUrl: record.imageUrl ?? undefined,
     standardizedImageUrl: record.standardizedImageUrl ?? undefined,
@@ -153,7 +155,9 @@ function mapPendingItem(record: {
   suggestedName: string;
   suggestedCategory: string;
   suggestedColor: string;
+  size: string | null;
   suggestedSeason: string;
+  notes: string | null;
   status: string;
   aiConfidence: number | null;
   categorySource: string | null;
@@ -174,7 +178,9 @@ function mapPendingItem(record: {
     suggestedName: record.suggestedName,
     suggestedCategory: record.suggestedCategory as PendingItem['suggestedCategory'],
     suggestedColor: record.suggestedColor,
+    size: record.size ?? undefined,
     suggestedSeason: parseSeasonValue(record.suggestedSeason),
+    notes: record.notes ?? undefined,
     status: record.status as PendingItem['status'],
     aiConfidence: record.aiConfidence ?? undefined,
     categorySource: (record.categorySource as PendingItem['categorySource']) ?? undefined,
@@ -204,6 +210,7 @@ export async function createClothingItem(data: ClothingItemFormData): Promise<Cl
       name: data.name,
       category: data.category,
       color: data.color,
+      size: data.size,
       season: stringifySeasonValue(data.season),
       imageUrl: data.imageUrl,
       standardizedImageUrl: data.standardizedImageUrl,
@@ -225,6 +232,7 @@ export async function updateClothingItem(id: string, data: Partial<ClothingItemF
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
       ...(data.color !== undefined ? { color: data.color } : {}),
+      ...(data.size !== undefined ? { size: data.size } : {}),
       ...(data.season !== undefined ? { season: stringifySeasonValue(data.season) } : {}),
       ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       ...(data.standardizedImageUrl !== undefined ? { standardizedImageUrl: data.standardizedImageUrl } : {}),
@@ -590,7 +598,9 @@ export async function createPendingUploadBatch(items: PendingItem[], batchId?: s
       suggestedName: item.suggestedName,
       suggestedCategory: item.suggestedCategory,
       suggestedColor: item.suggestedColor,
+      size: item.size,
       suggestedSeason: stringifySeasonValue(item.suggestedSeason),
+      notes: item.notes,
       status: item.status,
       aiConfidence: item.aiConfidence,
       categorySource: item.categorySource,
@@ -621,7 +631,9 @@ export async function updatePendingUploadItem(id: string, updates: Partial<Pendi
       ...(updates.suggestedName !== undefined ? { suggestedName: updates.suggestedName } : {}),
       ...(updates.suggestedCategory !== undefined ? { suggestedCategory: updates.suggestedCategory } : {}),
       ...(updates.suggestedColor !== undefined ? { suggestedColor: updates.suggestedColor } : {}),
+      ...(updates.size !== undefined ? { size: updates.size } : {}),
       ...(updates.suggestedSeason !== undefined ? { suggestedSeason: stringifySeasonValue(updates.suggestedSeason) } : {}),
+      ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
       ...(updates.status !== undefined ? { status: updates.status } : {}),
       ...(updates.aiConfidence !== undefined ? { aiConfidence: updates.aiConfidence } : {}),
       ...(updates.categorySource !== undefined ? { categorySource: updates.categorySource } : {}),
@@ -634,6 +646,29 @@ export async function updatePendingUploadItem(id: string, updates: Partial<Pendi
   });
 
   return mapPendingItem(item);
+}
+
+export async function confirmPendingUploadItem(id: string): Promise<ClothingItem | null> {
+  return prisma.$transaction(async tx => {
+    const draft = await tx.pendingUploadItem.findUnique({ where: { id, profileId: currentProfileId() } });
+    if (!draft) return null;
+    if (draft.status !== 'pending') throw new Error('这件衣物已跳过，请先恢复后再确认。');
+    if (!draft.suggestedName.trim()) throw new Error('请填写衣物名称后再确认。');
+    const item = await tx.clothingItem.create({ data: {
+      profileId: currentProfileId(),
+      name: draft.suggestedName.trim(),
+      category: draft.suggestedCategory,
+      color: draft.suggestedColor,
+      size: draft.size,
+      season: draft.suggestedSeason,
+      imageUrl: draft.imageUrl,
+      standardizedImageUrl: draft.standardizedImageUrl,
+      cutoutImageUrl: draft.cutoutImageUrl,
+      notes: draft.notes,
+    } });
+    await tx.pendingUploadItem.delete({ where: { id, profileId: currentProfileId() } });
+    return mapClothingItem(item);
+  });
 }
 
 export async function removePendingUploadItem(id: string): Promise<boolean> {

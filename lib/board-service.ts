@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import sharp from 'sharp';
 
 import { Category, Outfit } from '@/app/types';
+import { categoryBoardGroup } from './clothing-categories';
 import {
   boardsDir,
   cutoutsDir,
@@ -45,7 +46,7 @@ type BoardSlot = {
   height: number;
 };
 
-type CategorizedItems = Record<Category, BoardItemInput[]>;
+type CategorizedItems = Record<'top' | 'bottom' | 'outerwear' | 'shoes' | 'accessory' | 'other', BoardItemInput[]>;
 type BoardRole = 'primaryTop' | 'outerLayer' | 'bottomAnchor' | 'shoeAnchor' | 'accessory' | 'other';
 type BoardPlan = {
   slots: Map<string, BoardSlot>;
@@ -130,10 +131,27 @@ function sortTopCluster(items: BoardItemInput[]) {
   });
 }
 
-function getBoardPlan(items: BoardItemInput[]): BoardPlan {
+export function getBoardPlan(items: BoardItemInput[]): BoardPlan {
   const byCategory = categorizeItems(items);
   const slots = new Map<string, BoardSlot>();
   const roles = new Map<string, BoardRole>();
+  // A dress, underwear or homewear photo can contain one piece or a complete set.
+  // Give each reference its own uncropped cell instead of forcing a top/bottom slot.
+  if (items.some(item => categoryBoardGroup(item.category) === 'whole' || !['top', 'bottom', 'outerwear', 'shoes', 'accessory', 'other'].includes(item.category))) {
+    const columns = items.length === 1 ? 1 : items.length <= 4 ? 2 : Math.ceil(Math.sqrt(items.length));
+    const rows = Math.ceil(items.length / columns);
+    const cellWidth = (BOARD_WIDTH - 120) / columns;
+    const cellHeight = (BOARD_HEIGHT - 120) / rows;
+    items.forEach((item, index) => {
+      roles.set(item.id, 'other');
+      slots.set(item.id, {
+        left: Math.round(60 + (index % columns) * cellWidth + 20),
+        top: Math.round(60 + Math.floor(index / columns) * cellHeight + 20),
+        width: Math.floor(cellWidth - 40), height: Math.floor(cellHeight - 40),
+      });
+    });
+    return { slots, roles };
+  }
   const first = (list: BoardItemInput[]) => list[0];
   const topLikeItems = sortTopCluster([...byCategory.outerwear, ...byCategory.top]);
 
@@ -331,7 +349,8 @@ async function buildBoardImage(items: BoardItemInput[]) {
     const cutoutPath = await ensureCutoutAsset(item);
     const metadata = await sharp(cutoutPath).metadata();
     const aspectRatio = (metadata.width ?? slot.width) / Math.max(metadata.height ?? slot.height, 1);
-    const scale = getRoleScale(roles.get(item.id) ?? 'other', item.category, aspectRatio);
+    const role = roles.get(item.id) ?? 'other';
+    const scale = role === 'other' ? 1 : getRoleScale(role, item.category, aspectRatio);
     const targetWidth = Math.round(slot.width * scale);
     const targetHeight = Math.round(slot.height * scale);
 

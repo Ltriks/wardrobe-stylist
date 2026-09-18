@@ -1,18 +1,14 @@
 'use client';
 
+import { clothingCategories } from '../../lib/clothing-categories';
+
 import { errorLabel } from '../lib/display-labels';
 
 import { useState, useEffect } from 'react';
 import { Category, Season, ClothingItemFormData } from '../types';
+import ClothingSizeInput from './ClothingSizeInput';
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'top', label: "上装" },
-  { value: 'bottom', label: "下装" },
-  { value: 'outerwear', label: "外套" },
-  { value: 'shoes', label: "鞋履" },
-  { value: 'accessory', label: "配饰" },
-  { value: 'other', label: "其他" },
-];
+const CATEGORIES = clothingCategories;
 
 const SEASONS: { value: Season; label: string }[] = [
   { value: 'spring', label: "春季" },
@@ -32,6 +28,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
     name: '',
     category: 'top',
     color: '',
+    size: '',
     season: [],
     imageUrl: '',
     notes: '',
@@ -48,6 +45,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         name: initialData.name || '',
         category: initialData.category || 'top',
         color: initialData.color || '',
+        size: initialData.size || '',
         season: initialData.season || [],
         imageUrl: initialData.imageUrl || '',
         notes: initialData.notes || '',
@@ -58,6 +56,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         name: '',
         category: 'top',
         color: '',
+        size: '',
         season: [],
         imageUrl: '',
         notes: '',
@@ -67,7 +66,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || formData.season.length === 0) return;
+    if (!formData.name.trim()) return;
     await onSubmit(formData);
   };
 
@@ -182,8 +181,16 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
 
       {/* Season */}
       <div>
+        <label className="mb-1.5 block text-sm font-medium text-gray-700">尺码（选填）</label>
+        <ClothingSizeInput
+          value={formData.size || ''}
+          onChange={e => setFormData(prev => ({ ...prev, size: e.target.value }))}
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          季节 <span className="text-red-500">*</span>
+          适穿季节（选填，可多选）
         </label>
         <div className="flex flex-wrap gap-2">
           {SEASONS.map(season => (
@@ -201,9 +208,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
             </button>
           ))}
         </div>
-        {formData.season.length === 0 && (
-          <p className="text-red-500 text-sm mt-1.5">请至少选择一个季节</p>
-        )}
+        <p className="text-gray-500 text-xs mt-1.5">按实际厚薄和穿着习惯选择，也可以稍后补充。</p>
       </div>
 
       {/* Image Upload & URL */}
@@ -242,7 +247,8 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         {/* Image URL Input */}
         <div className="relative">
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             value={formData.imageUrl}
             onChange={e => {
               setFormData(prev => ({ ...prev, imageUrl: e.target.value }));
@@ -287,7 +293,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
           onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
           className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
           rows={3}
-          placeholder="写下材质、尺码或其他备注…"
+          placeholder="写下材质、穿着偏好或其他备注…"
         />
       </div>
 
@@ -295,7 +301,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
-          disabled={formData.season.length === 0 || !formData.name.trim()}
+          disabled={!formData.name.trim()}
           className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
           {initialData ? "保存衣物" : "添加衣物"}

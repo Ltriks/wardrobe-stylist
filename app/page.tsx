@@ -540,6 +540,7 @@ export default function Home() {
               name: editingItem.name,
               category: editingItem.category,
               color: editingItem.color,
+              size: editingItem.size,
               season: editingItem.season,
               imageUrl: editingItem.imageUrl,
               notes: editingItem.notes,

@@ -69,6 +69,7 @@ export function buildTryOnPrompt(clothingFit: ClothingFit = 'original') {
     'Use Image 2 as the outfit board reference.',
     'Generate a realistic fashion try-on preview where the person from Image 1 wears the outfit shown in Image 2.',
     'Preserve the overall colors, layering, silhouette, and styling direction from the board.',
+    'Preserve each garment type: keep dresses and skirts intact, and keep loungewear or pajama sets together. Do not replace a dress or one-piece garment with a shirt and trousers. Wear underwear as an inner layer beneath outer clothing when both are present; do not add exposure or change clothing coverage.',
     clothingFitPrompt(clothingFit),
     'Keep the result natural, editorial, and believable.',
     'Do not add extra garments, extra accessories, duplicate clothing pieces, text, or collage elements.',
