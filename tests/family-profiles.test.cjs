@@ -17,7 +17,7 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
   try {
     await symlink(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');
     const schema = await readFile(join(root, 'prisma/schema.prisma'), 'utf8');
-    const legacySchema = schema.replace(/^.*profileId.*\n/gm, '').replace(/^.*(?:pantsFit|tryOnFit).*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '')
+    const legacySchema = schema.replace(/model (?:ClothingCategory|CategoryFavorite) \{[^}]*\}/g, '').replace(/^.*usageTags.*\n/gm, '').replace(/^.*profileId.*\n/gm, '').replace(/^.*(?:pantsFit|tryOnFit).*\n/gm, '').replace(/model WardrobeProfile \{[^}]*\}/, '')
       .replace(/^.*size\s+String\?.*\n/gm, '')
       .replace(/model PendingUploadItem \{[^}]*\}/, block => block.replace(/^.*notes\s+String\?.*\n/gm, ''));
     const legacyPath = join(directory, 'legacy.prisma');
@@ -37,12 +37,13 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
 
     const compiled = join(directory, 'compiled');
     await mkdir(compiled);
-    for (const filename of ['db', 'profile-context', 'wardrobe-store', 'tryon-fit']) {
+    for (const filename of ['db', 'profile-context', 'wardrobe-store', 'tryon-fit', 'category-store', 'category-catalog']) {
       const source = await readFile(join(root, `lib/${filename}.ts`), 'utf8');
       await writeFile(join(compiled, `${filename}.js`), ts.transpileModule(source, {
-        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+        compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
       }).outputText);
     }
+    await writeFile(join(compiled, 'category-defaults.json'), await readFile(join(root, 'lib/category-defaults.json')));
     process.env.WARDROBE_DATABASE_URL = databaseUrl;
     db = require(join(compiled, 'db.js')).prisma;
     const store = require(join(compiled, 'wardrobe-store.js'));
@@ -149,6 +150,27 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
       assert.throws(() => currentProfileId(), /选择成员/);
     });
 
+    await t.test('catalog edits preserve IDs and history, favorites remain member-scoped, and tags round trip', async () => {
+      const catalog = require(join(compiled, 'category-store.js'));
+      const custom = await as('child', () => catalog.saveCategory({label:'宝宝背带裤',group:'whole',sortOrder:2}));
+      await as('child', () => catalog.setCategoryFavorite(custom.id,true));
+      assert.ok((await as('child',catalog.categoryCatalog)).favorites.includes(custom.id));
+      assert.equal((await as('default',catalog.categoryCatalog)).favorites.includes(custom.id),false);
+      const garment = await as('child',()=>store.createClothingItem({name:'背带裤',category:custom.id,color:'蓝色',season:[],usageTags:['home','daily']}));
+      assert.deepEqual(garment.usageTags,['home','daily']);
+      await assert.rejects(as('child',()=>store.updateClothingItem(garment.id,{usageTags:['invalid']})), /用途/);
+      await as('child',()=>catalog.saveCategory({...custom,label:'婴儿背带裤',active:false}));
+      assert.equal((await as('child',()=>store.updateClothingItem(garment.id,{category:custom.id,name:'新名字'}))).category,custom.id);
+      await assert.rejects(as('child',()=>store.createClothingItem({name:'新衣',category:custom.id,color:'白',season:[]})),/停用/);
+      await assert.rejects(as('child',()=>catalog.saveCategory({id:'top',label:'上装',group:'top',active:false})),/基础分类/);
+      await assert.rejects(as('child',()=>catalog.saveCategory({label:'错误',group:'missing'})),/部位/);
+      prepare();
+      const after = await as('default',catalog.categoryCatalog);
+      assert.equal(after.categories.find(c=>c.id===custom.id).label,'婴儿背带裤');
+      assert.equal(after.categories.find(c=>c.id===custom.id).active,false);
+      assert.equal((await readdir(join(directory,'data/backups'))).length,1);
+    });
+
     await t.test('batch drafts persist notes, size and manual seasons, and confirm atomically within their wardrobe', async () => {
       const id = 'metadata-draft';
       await as('child', () => store.createPendingUploadBatch([{ id, imageUrl: '/uploads/test.png', cutoutImageUrl: '/uploads/cutout.png', suggestedName: '旧名', suggestedCategory: 'top', suggestedColor: '白色', suggestedSeason: [], status: 'pending', notes: '初始备注', size: '80' }], 'metadata-batch'));
@@ -158,11 +180,12 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
       const empty = (await as('child', () => store.listPendingUploadItems('metadata-batch')))[0];
       assert.equal(empty.notes, '');
       assert.equal(empty.size, '');
-      await as('child', () => store.updatePendingUploadItem(id, { suggestedName: '宝宝上衣', notes: '柔软棉质', size: '90/52', suggestedSeason: ['spring', 'autumn'] }));
+      await as('child', () => store.updatePendingUploadItem(id, { suggestedName: '宝宝上衣', notes: '柔软棉质', size: '90/52', usageTags: ['home','sleep'], suggestedSeason: ['spring', 'autumn'] }));
       const item = await as('child', () => store.confirmPendingUploadItem(id));
       assert.equal(item.name, '宝宝上衣');
       assert.equal(item.notes, '柔软棉质');
       assert.equal(item.size, '90/52');
+      assert.deepEqual(item.usageTags,['home','sleep']);
       assert.deepEqual(item.season, ['spring', 'autumn']);
       assert.equal(item.cutoutImageUrl, '/uploads/cutout.png');
       assert.equal((await as('child', () => store.listPendingUploadItems('metadata-batch'))).length, 0);

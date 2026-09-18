@@ -1,6 +1,7 @@
 'use client';
 
-import { clothingCategories } from '../../lib/clothing-categories';
+import CategorySelect from '../components/CategorySelect';
+import UsageTagPicker from '../components/UsageTagPicker';
 
 import { colorLabel } from '../lib/display-labels';
 
@@ -12,7 +13,7 @@ import { clearPendingBatchApi, confirmPendingItemApi, fetchPendingItems, updateP
 import ClothingSizeInput from '../components/ClothingSizeInput';
 import { createPendingDraftSaver } from '../lib/pending-draft-saver';
 
-const CATEGORIES = clothingCategories;
+
 
 const SEASONS: { value: Season; label: string }[] = [
   { value: 'spring', label: "春季" },
@@ -230,17 +231,7 @@ function BatchConfirmEditor({ batchId }: { batchId?: string }) {
           {selectedCount > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
               <span className="text-sm font-medium text-blue-900">批量设置分类：</span>
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat.value}
-                  type="button"
-                  onClick={() => applyBulkCategory(cat.value)}
-                  disabled={isProcessing}
-                  className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-                >
-                  {cat.label}
-                </button>
-              ))}
+              <div className="w-64"><CategorySelect value="" placeholder="选择后应用到已选衣物" onChange={applyBulkCategory} disabled={isProcessing}/></div>
             </div>
           )}
           {selectedCount > 0 && (
@@ -339,7 +330,7 @@ function PendingItemCard({
   onConfirm: () => void;
 }) {
   const isSkipped = item.status === 'skipped';
-  const isAI = item.categorySource === 'ai' || item.colorSource === 'ai';
+  const hasSuggestion = [item.categorySource, item.colorSource].some(source => source === 'ai' || source === 'rule');
 
   return (
     <div className={`bg-white rounded-lg border ${isSkipped ? 'border-gray-200 opacity-50' : 'border-gray-200'} shadow-sm overflow-hidden`}>
@@ -368,9 +359,9 @@ function PendingItemCard({
           />
         </label>
         {/* AI Badge */}
-        {isAI && (
+        {hasSuggestion && (
           <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
-            智能识别
+            本地建议 · 可修改
           </div>
         )}
         {/* Duplicate Warning */}
@@ -413,21 +404,10 @@ function PendingItemCard({
         {/* Category */}
         <div>
           <p className="mb-1 text-xs text-gray-600">分类</p>
-          <select
-            aria-label="分类"
-            value={item.suggestedCategory}
-            onChange={(e) => onUpdate({ suggestedCategory: e.target.value as Category })}
-            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSkipped || disabled}
-          >
-            {CATEGORIES.map(cat => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
+          <CategorySelect value={item.suggestedCategory} onChange={suggestedCategory=>onUpdate({suggestedCategory,categorySource:'default'})} disabled={isSkipped||disabled}/>
         </div>
 
+        <UsageTagPicker value={item.usageTags} onChange={usageTags=>onUpdate({usageTags})} disabled={isSkipped||disabled}/>
         {/* Color */}
         <div>
           <p className="mb-1 text-xs text-gray-600">颜色</p>

@@ -3,7 +3,7 @@ export const seasonLabels: Record<string, string> = { spring: '春季', summer: 
 export const statusLabels: Record<string, string> = { idle: '待生成', generating: '生成中', success: '已完成', failed: '生成失败' };
 const colorLabels: Record<string, string> = {
   unknown: '未识别', white: '白色', black: '黑色', gray: '灰色', grey: '灰色', red: '红色', blue: '蓝色', green: '绿色',
-  yellow: '黄色', orange: '橙色', purple: '紫色', pink: '粉色', brown: '棕色', navy: '藏蓝色', beige: '米色',
+  yellow: '黄色', orange: '橙色', purple: '紫色', pink: '粉色', brown: '棕色', navy: '藏蓝色', beige: '米色', multicolor: '多色',
 };
 export function colorLabel(value: string) { return colorLabels[value.toLowerCase()] || value; }
 

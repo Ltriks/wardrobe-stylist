@@ -1,8 +1,9 @@
 'use client';
+import { useCategories } from './CategoryProvider';
 
-import { categoryIcon } from '../../lib/clothing-categories';
+import { usageOptions, categoryGroups } from '../../lib/category-catalog';
 
-import { categoryLabels, seasonLabels, colorLabel } from '../lib/display-labels';
+import { seasonLabels, colorLabel } from '../lib/display-labels';
 
 import { useEffect, useState } from 'react';
 
@@ -46,7 +47,7 @@ function ItemImagePreview({ item }: { item: ClothingItem }) {
   if (showPlaceholder || sources.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">
-        {getCategoryIcon(item.category)}
+        {<CategoryIcon category={item.category}/>}
       </div>
     );
   }
@@ -69,6 +70,7 @@ function ItemImagePreview({ item }: { item: ClothingItem }) {
 }
 
 export default function ClothingList({ items, onEdit, onDelete }: ClothingListProps) {
+  const { labels: categoryLabels, categories } = useCategories();
   if (items.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -113,7 +115,7 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
             </div>
           ) : (
             <div className="garment-frame mb-3 h-44 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-center relative">
-              <span className="text-gray-300 text-3xl">{getCategoryIcon(item.category)}</span>
+              <span className="text-gray-300 text-3xl">{<CategoryIcon category={item.category}/>}</span>
               <div className="garment-actions absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   onClick={() => onEdit(item)}
@@ -148,8 +150,9 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
           <div className="space-y-2">
             {/* Category & Color */}
             <div className="flex flex-wrap gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${categoryColors[item.category]}`}>
-                {categoryLabels[item.category]}
+              {(item.usageTags || []).map(tag=><span key={tag} className="border border-gray-200 px-2 py-1 text-xs">{usageOptions.find(t=>t.id===tag)?.label || tag}</span>)}
+              <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${categoryColors[categories.find(c=>c.id===item.category)?.group || 'other'] || categoryColors.other}`}>
+                {(categoryLabels[item.category] || item.category)}
               </span>
               <span className="px-2.5 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-100">
                 {colorLabel(item.color)}
@@ -194,5 +197,8 @@ export default function ClothingList({ items, onEdit, onDelete }: ClothingListPr
   );
 }
 
-// Helper function to get category icon
-const getCategoryIcon = categoryIcon;
+function CategoryIcon({ category }: { category: string }) {
+  const { categories } = useCategories();
+  const group = categories.find(item => item.id === category)?.group;
+  return <>{categoryGroups.find(item => item.id === group)?.icon || '📦'}</>;
+}

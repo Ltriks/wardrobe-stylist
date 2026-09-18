@@ -1,14 +1,13 @@
 'use client';
 
-import { clothingCategories } from '../../lib/clothing-categories';
+import CategorySelect from './CategorySelect';
+import UsageTagPicker from './UsageTagPicker';
 
 import { errorLabel } from '../lib/display-labels';
 
 import { useState, useEffect } from 'react';
-import { Category, Season, ClothingItemFormData } from '../types';
+import { Season, ClothingItemFormData } from '../types';
 import ClothingSizeInput from './ClothingSizeInput';
-
-const CATEGORIES = clothingCategories;
 
 const SEASONS: { value: Season; label: string }[] = [
   { value: 'spring', label: "春季" },
@@ -28,6 +27,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
     name: '',
     category: 'top',
     color: '',
+    usageTags: [],
     size: '',
     season: [],
     imageUrl: '',
@@ -45,6 +45,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         name: initialData.name || '',
         category: initialData.category || 'top',
         color: initialData.color || '',
+        usageTags: initialData.usageTags || [],
         size: initialData.size || '',
         season: initialData.season || [],
         imageUrl: initialData.imageUrl || '',
@@ -56,6 +57,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         name: '',
         category: 'top',
         color: '',
+        usageTags: [],
         size: '',
         season: [],
         imageUrl: '',
@@ -151,19 +153,10 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           分类 <span className="text-red-500">*</span>
         </label>
-        <select
-          value={formData.category}
-          onChange={e => setFormData(prev => ({ ...prev, category: e.target.value as Category }))}
-          className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          {CATEGORIES.map(cat => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
+        <CategorySelect value={formData.category} onChange={category=>setFormData(prev=>({...prev,category}))}/>
       </div>
 
+      <UsageTagPicker value={formData.usageTags} onChange={usageTags=>setFormData(prev=>({...prev,usageTags}))}/>
       {/* Color */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">

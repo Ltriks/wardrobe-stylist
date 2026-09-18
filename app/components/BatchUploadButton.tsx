@@ -1,204 +1,56 @@
 'use client';
 
-import { suggestClothingCategory } from '../../lib/clothing-categories';
+import { useCategories } from './CategoryProvider';
+import { refineCategorySuggestion } from '../../lib/category-catalog';
+import { Pixels, suggestLocalAttributes } from '../lib/local-clothing-analysis';
 
 import { useState, useRef, useEffect } from 'react';
-import { PendingItem, Category, Season, ClothingItem } from '../types';
+import { PendingItem, ClothingItem } from '../types';
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as tf from '@tensorflow/tfjs';
+
+// Share one download/model across remounts and React Strict Mode effects.
+let localModelPromise: Promise<mobilenet.MobileNet> | undefined;
+function loadLocalModel() {
+  if (!localModelPromise) {
+    localModelPromise = tf.ready().then(() => mobilenet.load({ version: 2, alpha: 1.0 })).catch(error => {
+      localModelPromise = undefined;
+      throw error;
+    });
+  }
+  return localModelPromise;
+}
 
 interface BatchUploadButtonProps {
   onUploadComplete: (items: PendingItem[]) => void | Promise<void>;
   existingItems: ClothingItem[];
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "发生未知错误";
-}
-
 export default function BatchUploadButton({ onUploadComplete, existingItems }: BatchUploadButtonProps) {
+  const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [model, setModel] = useState<mobilenet.MobileNet | null>(null);
+  const modelRef = useRef<mobilenet.MobileNet | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [modelLoadFailed, setModelLoadFailed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Start loading MobileNet model in the background (non-blocking)
   useEffect(() => {
-    const loadModel = async () => {
-      console.log('Starting MobileNet model load...');
-      try {
-        // Set backend to WebGL if available, otherwise CPU
-        console.log('Calling tf.ready()...');
-        await tf.ready();
-        const backend = tf.getBackend();
-        console.log('TensorFlow.js backend:', backend);
-        
-        console.log('Loading MobileNet model...');
-        const loadedModel = await mobilenet.load({ version: 2, alpha: 1.0 });
-        console.log('MobileNet model loaded:', loadedModel);
-        setModel(loadedModel);
-        setModelLoaded(true);
-        setModelLoadFailed(false);
-        console.log('MobileNet model loaded successfully');
-      } catch (error) {
-        console.error('Failed to load MobileNet model:', error);
-        setModelLoaded(false);
-        setModelLoadFailed(true);
-      }
-    };
-
-    loadModel();
+    let cancelled = false;
+    void loadLocalModel().then(model => {
+      if (!cancelled) { modelRef.current = model; setModelLoaded(true); }
+    }).catch(() => { if (!cancelled) setModelLoaded(false); });
+    return () => { cancelled = true; };
   }, []);
 
-  // Classify image using MobileNet and map to coarse categories
-  const classifyImage = async (imgElement: HTMLImageElement): Promise<{ category: Category; confidence: number; rawPredictions: string } | null> => {
-    if (!model) {
-      return null;
-    }
-
-    try {
-      const predictions = await model.classify(imgElement);
-      
-      // Map MobileNet predictions to our coarse categories
-      const mapped = mapMobileNetToCategory(predictions);
-      console.log('MobileNet predictions:', mapped.rawPredictions);
-      return mapped;
-    } catch (error) {
-      console.warn('MobileNet classification failed:', error);
-      return null;
-    }
-  };
-
-  // Extract dominant color from image using Canvas API
-  const extractColorFromImage = async (imgElement: HTMLImageElement): Promise<{ color: string; confidence: number }> => {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return { color: 'unknown', confidence: 0 };
-      }
-
-      // Resize image for faster processing
-      const maxSize = 100;
-      const scale = Math.min(maxSize / imgElement.width, maxSize / imgElement.height);
-      canvas.width = imgElement.width * scale;
-      canvas.height = imgElement.height * scale;
-
-      ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      // Count color occurrences
-      const colorCounts: Record<string, number> = {};
-      let totalPixels = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-
-        // Skip transparent pixels
-        if (a < 128) continue;
-
-        // Quantize colors to reduce noise
-        const quantizedR = Math.round(r / 32) * 32;
-        const quantizedG = Math.round(g / 32) * 32;
-        const quantizedB = Math.round(b / 32) * 32;
-
-        const colorKey = `${quantizedR},${quantizedG},${quantizedB}`;
-        colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
-        totalPixels++;
-      }
-
-      // Find the most common color
-      let maxCount = 0;
-      let dominantColorKey = '';
-      for (const [colorKey, count] of Object.entries(colorCounts)) {
-        if (count > maxCount) {
-          maxCount = count;
-          dominantColorKey = colorKey;
-        }
-      }
-
-      if (!dominantColorKey) {
-        return { color: 'unknown', confidence: 0 };
-      }
-
-      const [r, g, b] = dominantColorKey.split(',').map(Number);
-      const colorName = rgbToColorName(r, g, b);
-      const confidence = totalPixels > 0 ? maxCount / totalPixels : 0;
-
-      return { color: colorName, confidence };
-    } catch (error) {
-      console.warn('Color extraction failed:', error);
-      return { color: 'unknown', confidence: 0 };
-    }
-  };
-
-  // Map RGB values to color names
-  const rgbToColorName = (r: number, g: number, b: number): string => {
-    // Simple color mapping based on RGB ranges
-    const colors = [
-      { name: 'white', r: 240, g: 240, b: 240, threshold: 30 },
-      { name: 'black', r: 30, g: 30, b: 30, threshold: 30 },
-      { name: 'gray', r: 128, g: 128, b: 128, threshold: 40 },
-      { name: 'red', r: 200, g: 50, b: 50, threshold: 60 },
-      { name: 'blue', r: 50, g: 50, b: 200, threshold: 60 },
-      { name: 'green', r: 50, g: 150, b: 50, threshold: 60 },
-      { name: 'yellow', r: 200, g: 200, b: 50, threshold: 60 },
-      { name: 'orange', r: 220, g: 140, b: 50, threshold: 60 },
-      { name: 'purple', r: 150, g: 50, b: 150, threshold: 60 },
-      { name: 'pink', r: 220, g: 150, b: 180, threshold: 60 },
-      { name: 'brown', r: 139, g: 90, b: 43, threshold: 60 },
-      { name: 'navy', r: 0, g: 0, b: 128, threshold: 40 },
-    ];
-
-    for (const color of colors) {
-      const distance = Math.sqrt(
-        Math.pow(r - color.r, 2) +
-        Math.pow(g - color.g, 2) +
-        Math.pow(b - color.b, 2)
-      );
-      if (distance < color.threshold) {
-        return color.name;
-      }
-    }
-
-    // If no match, return a generic color based on dominant channel
-    const maxChannel = Math.max(r, g, b);
-    if (maxChannel === r) return 'red';
-    if (maxChannel === g) return 'green';
-    if (maxChannel === b) return 'blue';
-
-    return 'unknown';
-  };
-
-  // Map MobileNet predictions to coarse categories
-  const mapMobileNetToCategory = (predictions: any[]): { category: Category; confidence: number; rawPredictions: string } => {
-    // MobileNet returns predictions like: [{ className: 't-shirt, tee shirt', probability: 0.95 }, ...]
-    // Map to our coarse categories
-
-    // Log raw predictions for debugging
-    const rawPredictions = predictions.slice(0, 5).map(p => `${p.className} (${(p.probability * 100).toFixed(1)}%)`).join(', ');
-
-    for (const pred of predictions) {
-      const className = pred.className.toLowerCase();
-      const probability = pred.probability;
-
-      const category = suggestClothingCategory(className);
-      if (category !== 'other') return { category, confidence: probability, rawPredictions };
-    }
-
-    // If no match, use highest probability prediction as "other"
-    return { category: 'other', confidence: predictions[0]?.probability || 0.3, rawPredictions };
+  const imagePixels = (image: HTMLImageElement): Pixels | undefined => {
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 128 / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return undefined;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return context.getImageData(0, 0, canvas.width, canvas.height);
   };
 
   const standardizeImage = async (imageUrl: string): Promise<string | undefined> => {
@@ -227,11 +79,10 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
         const imgElement = await new Promise<HTMLImageElement>((resolve, reject) => {
           const nextImage = new Image();
           nextImage.crossOrigin = 'anonymous';
-          nextImage.onload = () => resolve(nextImage);
-          nextImage.onerror = () => reject(new Error(`Image failed to load: ${url}`));
+          const timer = setTimeout(() => reject(new Error(`Image load timeout: ${url}`)), 5000);
+          nextImage.onload = () => { clearTimeout(timer); resolve(nextImage); };
+          nextImage.onerror = () => { clearTimeout(timer); reject(new Error(`Image failed to load: ${url}`)); };
           nextImage.src = url;
-
-          setTimeout(() => reject(new Error(`Image load timeout: ${url}`)), 5000);
         });
 
         return imgElement;
@@ -295,72 +146,39 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
           standardizedImageUrl = undefined; // Will fallback to original
         }
 
-        // Generate rule-based suggestions (for name only)
-        const ruleSuggested = generateSuggestedAttributes(file.name);
+        // Colour is independent of MobileNet readiness/failure. Use the original
+        // image first: the standardized image has artificial opaque white padding.
+        let pixels: Pixels | undefined;
+        let analysisImage: HTMLImageElement | undefined;
+        try {
+          analysisImage = await loadImageForAnalysis(imageUrl, standardizedImageUrl);
+          pixels = imagePixels(analysisImage);
+        } catch (error) { console.warn('Local colour analysis unavailable:', error); }
+        const readyModel = modelRef.current;
+        const suggestions = await suggestLocalAttributes(file.name, pixels,
+          readyModel && analysisImage ? async () => {
+            const modelImage = standardizedImageUrl
+              ? await loadImageForAnalysis(standardizedImageUrl, imageUrl) : analysisImage!;
+            return readyModel.classify(modelImage, 5);
+          } : undefined,
+        );
+        const suggestedName = file.name.replace(/\.[^/.]+$/, '').replace(/_+/g, ' ').trim() || '未命名衣物';
 
-        // Try MobileNet classification for category and color extraction
-        let aiCategory: Category = 'other';
-        let aiConfidence = 0;
-        let categorySource: 'ai' | 'rule' | 'default' = 'default';
-        let aiColor: string = 'unknown';
-        let colorConfidence = 0;
-        let colorSource: 'ai' | 'rule' | 'default' = 'default';
-        let rawPredictions = '';
-
-        // Use AI classification only if model is already loaded
-        if (modelLoaded && model) {
-          try {
-            const imgElement = await loadImageForAnalysis(standardizedImageUrl, imageUrl);
-
-            // Classify using MobileNet for category
-            const classificationResult = await classifyImage(imgElement);
-            
-            if (classificationResult) {
-              rawPredictions = classificationResult.rawPredictions;
-              if (classificationResult.confidence > 0.5) {
-                aiCategory = classificationResult.category;
-                aiConfidence = classificationResult.confidence;
-                categorySource = 'ai';
-              }
-            } else {
-              rawPredictions = "未识别到结果";
-            }
-
-            // Extract color from image
-            const colorResult = await extractColorFromImage(imgElement);
-            if (colorResult.confidence > 0.3) {
-              aiColor = colorResult.color;
-              colorConfidence = colorResult.confidence;
-              colorSource = 'ai';
-            }
-          } catch (aiError) {
-            console.warn('AI classification failed, using rules fallback:', aiError);
-            rawPredictions = `AI classify failed: ${getErrorMessage(aiError)}`;
-          }
-        } else {
-          // Model not loaded yet, use fallback
-          rawPredictions = modelLoadFailed ? "识别模型加载失败" : "识别模型加载中…";
-        }
-
-        // Use AI result if confidence is high enough, otherwise use rules
-        const finalCategory = aiConfidence > 0.5 ? aiCategory : ruleSuggested.category;
-        const finalColor = colorSource === 'ai' ? aiColor : ruleSuggested.color;
-        const finalSeason: Season[] = []; // Season is always empty, user must confirm manually
-
+        const suggestedCategory = refineCategorySuggestion(file.name, suggestions.category, categories);
         const pendingItem: PendingItem = {
           id: Date.now().toString(36) + Math.random().toString(36).substr(2),
           imageUrl: imageUrl,
           standardizedImageUrl: standardizedImageUrl,
-          suggestedName: ruleSuggested.name, // Name still from filename
-          suggestedCategory: finalCategory,
-          suggestedColor: finalColor,
-          suggestedSeason: finalSeason,
+          suggestedName,
+          suggestedCategory,
+          suggestedColor: suggestions.color,
+          suggestedSeason: [],
           status: 'pending',
-          aiConfidence: aiConfidence,
-          categorySource: categorySource,
-          colorSource: colorSource,
+          aiConfidence: suggestions.confidence,
+          categorySource: suggestedCategory !== suggestions.category ? 'rule' : suggestions.categorySource,
+          colorSource: suggestions.colorSource,
           seasonSource: 'default', // Season is always default/empty
-          rawPredictions: rawPredictions, // Store raw predictions for debugging
+          rawPredictions: suggestions.rawPredictions, // Store raw predictions for debugging
         };
 
         // Duplicate detection
@@ -408,9 +226,9 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
       />
       <div className="flex flex-col items-start gap-1.5">
         <button
-          title={modelLoaded ? "智能识别已就绪" : "上传后可手动确认分类"}
+          title={modelLoaded ? "本地分类和颜色建议已就绪，上传后可修改" : "本地颜色与文件名建议可用，上传后可修改"}
           onClick={handleClick}
-          disabled={isUploading}
+          disabled={isUploading || categoriesLoading || !!categoriesError}
           className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-sm"
         >
           {isUploading ? (
@@ -436,111 +254,6 @@ export default function BatchUploadButton({ onUploadComplete, existingItems }: B
   );
 }
 
-function generateSuggestedAttributes(filename: string): {
-  name: string;
-  category: Category;
-  color: string;
-  season: Season[];
-} {
-  // Remove file extension
-  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-
-  // Remove common prefixes/suffixes
-  const cleanName = nameWithoutExt
-    .replace(/^[0-9]+_?/, '') // Remove leading numbers
-    .replace(/_+/g, ' ') // Replace underscores with spaces
-    .trim();
-
-  // Determine category based on keywords
-  const category = determineCategory(cleanName);
-
-  // Determine color based on keywords
-  const color = determineColor(cleanName);
-
-  // Determine season based on keywords
-  const season = determineSeason(cleanName);
-
-  return {
-    name: cleanName,
-    category,
-    color,
-    season,
-  };
-}
-
-function determineCategory(name: string): Category {
-  return suggestClothingCategory(name);
-}
-
-function determineColor(name: string): string {
-  const lowerName = name.toLowerCase();
-
-  const colorKeywords: Record<string, string> = {
-    white: 'white',
-    black: 'black',
-    blue: 'blue',
-    red: 'red',
-    green: 'green',
-    yellow: 'yellow',
-    pink: 'pink',
-    purple: 'purple',
-    orange: 'orange',
-    gray: 'gray',
-    grey: 'gray',
-    brown: 'brown',
-    beige: 'beige',
-    navy: 'navy',
-    // Chinese keywords
-    白: 'white',
-    黑: 'black',
-    蓝: 'blue',
-    红: 'red',
-    绿: 'green',
-    黄: 'yellow',
-    粉: 'pink',
-    紫: 'purple',
-    橙: 'orange',
-    灰: 'gray',
-    棕: 'brown',
-  };
-
-  for (const [keyword, color] of Object.entries(colorKeywords)) {
-    if (lowerName.includes(keyword)) {
-      return color;
-    }
-  }
-
-  return 'unknown';
-}
-
-function determineSeason(name: string): Season[] {
-  const lowerName = name.toLowerCase();
-
-  const seasonKeywords: Record<string, Season> = {
-    spring: 'spring',
-    春: 'spring',
-    summer: 'summer',
-    夏: 'summer',
-    autumn: 'autumn',
-    fall: 'autumn',
-    秋: 'autumn',
-    winter: 'winter',
-    冬: 'winter',
-  };
-
-  const seasons: Season[] = [];
-
-  for (const [keyword, season] of Object.entries(seasonKeywords)) {
-    if (lowerName.includes(keyword)) {
-      if (!seasons.includes(season)) {
-        seasons.push(season);
-      }
-    }
-  }
-
-  return seasons;
-}
-
 // Duplicate detection function
 // Returns { isDuplicate: boolean, reason: string } based on simple heuristics
 function detectDuplicate(
@@ -552,6 +265,7 @@ function detectDuplicate(
   for (const existing of existingItems) {
     // Rule 1: Same category and color (high confidence)
     if (
+      item.suggestedCategory !== 'other' && item.suggestedColor !== 'unknown' &&
       existing.category === item.suggestedCategory &&
       existing.color === item.suggestedColor
     ) {
@@ -581,6 +295,7 @@ function detectDuplicate(
 
     // Rule 3: Same category and color in the same batch
     if (
+      item.suggestedCategory !== 'other' && item.suggestedColor !== 'unknown' &&
       pending.suggestedCategory === item.suggestedCategory &&
       pending.suggestedColor === item.suggestedColor
     ) {

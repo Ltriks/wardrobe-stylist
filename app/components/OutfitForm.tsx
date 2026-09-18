@@ -1,8 +1,10 @@
 'use client';
+import { useCategories } from './CategoryProvider';
 
-import { clothingCategories } from '../../lib/clothing-categories';
+import CategorySelect from './CategorySelect';
+import { matchesCategory } from '../../lib/category-catalog';
 
-import { categoryLabels, colorLabel } from '../lib/display-labels';
+import { colorLabel } from '../lib/display-labels';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Category, ClothingItem, Season, OutfitFormData } from '../types';
@@ -22,9 +24,9 @@ interface OutfitFormProps {
   isSubmitting?: boolean;
 }
 
-const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [{ value: 'all', label: '全部' }, ...clothingCategories];
 
 export default function OutfitForm({ items, initialData, onSubmit, onCancel, isSubmitting = false }: OutfitFormProps) {
+  const { labels: categoryLabels, categories } = useCategories();
   const [formData, setFormData] = useState<OutfitFormData>({
     name: '',
     itemIds: [],
@@ -89,18 +91,18 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
   );
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+      const categoryMatches = matchesCategory(item.category, categoryFilter, categories);
       const matchesColor = colorFilter === 'all' || item.color === colorFilter;
       const query = searchQuery.trim().toLowerCase();
       const matchesSearch =
         query.length === 0 ||
         item.name.toLowerCase().includes(query) ||
         item.color.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) || categoryLabels[item.category].includes(query) || colorLabel(item.color).includes(query);
+        item.category.toLowerCase().includes(query) || (categoryLabels[item.category] || item.category).includes(query) || colorLabel(item.color).includes(query);
 
-      return matchesCategory && matchesColor && matchesSearch;
+      return categoryMatches && matchesColor && matchesSearch;
     });
-  }, [items, categoryFilter, colorFilter, searchQuery]);
+  }, [items, categoryFilter, colorFilter, searchQuery, categories, categoryLabels]);
   const selectedSummary = selectedItems.length === 0
     ? "先挑选一件衣物"
     : `已选 ${selectedItems.length} 件衣物`;
@@ -214,7 +216,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-900">{item.name}</p>
-                  <p className="truncate text-xs text-slate-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
+                  <p className="truncate text-xs text-slate-500">{colorLabel(item.color)} · {(categoryLabels[item.category] || item.category)}</p>
                 </div>
               </button>
             ))}
@@ -263,21 +265,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {CATEGORY_FILTERS.map(category => (
-                <button
-                  key={category.value}
-                  type="button"
-                  onClick={() => setCategoryFilter(category.value)}
-                  disabled={isSubmitting}
-                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    categoryFilter === category.value
-                      ? 'border-slate-900 bg-slate-900 text-white'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {category.label}
-                </button>
-              ))}
+              <CategorySelect value={categoryFilter} onChange={value=>setCategoryFilter(value||'all')} filter placeholder="全部分类" disabled={isSubmitting}/>
             </div>
 
             <div className="mt-3 flex items-center justify-between sm:hidden">
@@ -331,7 +319,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium leading-5 text-gray-900">{item.name}</p>
-                          <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
+                          <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {(categoryLabels[item.category] || item.category)}</p>
                         </div>
                         <div
                           className={`mt-0.5 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${
@@ -388,7 +376,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                     </div>
                     <div className="mt-2.5">
                       <p className="truncate text-sm font-medium leading-5 text-gray-900">{item.name}</p>
-                      <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
+                      <p className="mt-1 text-xs text-gray-500">{colorLabel(item.color)} · {(categoryLabels[item.category] || item.category)}</p>
                     </div>
                   </button>
                 );
@@ -446,7 +434,7 @@ export default function OutfitForm({ items, initialData, onSubmit, onCancel, isS
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">{item.name}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{colorLabel(item.color)} · {categoryLabels[item.category]}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{colorLabel(item.color)} · {(categoryLabels[item.category] || item.category)}</p>
                   </div>
                   <button
                     type="button"

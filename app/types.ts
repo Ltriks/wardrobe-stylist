@@ -12,6 +12,7 @@ export interface ClothingItem {
   name: string;
   category: Category;
   color: string;
+  usageTags?: string[];
   size?: string;
   season: Season[];
   imageUrl?: string;
@@ -65,6 +66,7 @@ export interface ClothingItemFormData {
   name: string;
   category: Category;
   color: string;
+  usageTags?: string[];
   size?: string;
   season: Season[];
   imageUrl?: string;
@@ -104,6 +106,7 @@ export interface PendingItem {
   suggestedName: string;
   suggestedCategory: Category;
   suggestedColor: string;
+  usageTags?: string[];
   size?: string;
   suggestedSeason: Season[];
   notes?: string;

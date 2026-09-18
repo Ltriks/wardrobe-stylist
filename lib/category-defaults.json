@@ -1,0 +1,362 @@
+[
+  {
+    "id": "top",
+    "label": "上装（未细分）",
+    "group": "top",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "tshirt",
+    "label": "T恤",
+    "group": "top",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "shirt",
+    "label": "衬衫",
+    "group": "top",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "sweatshirt",
+    "label": "卫衣",
+    "group": "top",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "sweater",
+    "label": "毛衣",
+    "group": "top",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "tank",
+    "label": "背心",
+    "group": "top",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "outerwear",
+    "label": "外套（未细分）",
+    "group": "outerwear",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "jacket",
+    "label": "夹克",
+    "group": "outerwear",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "coat",
+    "label": "大衣",
+    "group": "outerwear",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "down",
+    "label": "羽绒服",
+    "group": "outerwear",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "blazer",
+    "label": "西装外套",
+    "group": "outerwear",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "cardigan",
+    "label": "开衫",
+    "group": "outerwear",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "bottom",
+    "label": "下装（未细分）",
+    "group": "bottom",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "trousers",
+    "label": "长裤",
+    "group": "bottom",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "shorts",
+    "label": "短裤",
+    "group": "bottom",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "jeans",
+    "label": "牛仔裤",
+    "group": "bottom",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "leggings",
+    "label": "打底裤",
+    "group": "bottom",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "skirt",
+    "label": "半身裙",
+    "group": "bottom",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "whole",
+    "label": "全身（未细分）",
+    "group": "whole",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "dress",
+    "label": "裙装（原分类）",
+    "group": "whole",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "onepiece-dress",
+    "label": "连衣裙",
+    "group": "whole",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "jumpsuit",
+    "label": "连体裤",
+    "group": "whole",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "baby-romper",
+    "label": "宝宝连体衣",
+    "group": "whole",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "bodysuit",
+    "label": "包屁衣",
+    "group": "whole",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "suit-set",
+    "label": "成套服装",
+    "group": "whole",
+    "sortOrder": 6,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "loungewear",
+    "label": "家居服（原分类）",
+    "group": "whole",
+    "sortOrder": 7,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "underwear",
+    "label": "内衣（未细分）",
+    "group": "underwear",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "underpants",
+    "label": "内裤",
+    "group": "underwear",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "bra",
+    "label": "文胸",
+    "group": "underwear",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "thermal",
+    "label": "保暖内衣",
+    "group": "underwear",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "socks",
+    "label": "袜子",
+    "group": "underwear",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "shoes",
+    "label": "鞋履（未细分）",
+    "group": "shoes",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "sneakers",
+    "label": "运动鞋",
+    "group": "shoes",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "leather-shoes",
+    "label": "皮鞋",
+    "group": "shoes",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "sandals",
+    "label": "凉鞋",
+    "group": "shoes",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "slippers",
+    "label": "拖鞋",
+    "group": "shoes",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "boots",
+    "label": "靴子",
+    "group": "shoes",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "baby-shoes",
+    "label": "学步鞋",
+    "group": "shoes",
+    "sortOrder": 6,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "accessory",
+    "label": "配饰（未细分）",
+    "group": "accessory",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "hat",
+    "label": "帽子",
+    "group": "accessory",
+    "sortOrder": 1,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "scarf",
+    "label": "围巾",
+    "group": "accessory",
+    "sortOrder": 2,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "bag",
+    "label": "包",
+    "group": "accessory",
+    "sortOrder": 3,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "belt",
+    "label": "腰带",
+    "group": "accessory",
+    "sortOrder": 4,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "bib",
+    "label": "围嘴",
+    "group": "accessory",
+    "sortOrder": 5,
+    "active": true,
+    "builtIn": true
+  },
+  {
+    "id": "other",
+    "label": "其他",
+    "group": "other",
+    "sortOrder": 0,
+    "active": true,
+    "builtIn": true
+  }
+]

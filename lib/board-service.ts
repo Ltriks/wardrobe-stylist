@@ -1,3 +1,5 @@
+import { prisma } from './db';
+import { categoryLayoutGroup } from './category-catalog';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -97,10 +99,11 @@ async function ensureCutoutAsset(item: BoardItemInput) {
 }
 
 async function buildBoardImage(items: BoardItemInput[]) {
+  const catalog = await prisma.clothingCategory.findMany();
   const images = [];
   for (const item of items) {
     const cutoutPath = await ensureCutoutAsset(item);
-    images.push({ id: item.id, category: item.category, image: await readFile(cutoutPath) });
+    images.push({ id: item.id, category: categoryLayoutGroup(catalog.find(c=>c.id===item.category)?.group || "other"), image: await readFile(cutoutPath) });
   }
   return renderBoardImage(images);
 }

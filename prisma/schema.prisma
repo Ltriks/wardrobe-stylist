@@ -13,6 +13,7 @@ model ClothingItem {
   name                 String
   category             String
   color                String
+  usageTags            String       @default("[]")
   size                 String?
   season               String
   imageUrl             String?
@@ -83,6 +84,7 @@ model PendingUploadItem {
   suggestedName        String
   suggestedCategory    String
   suggestedColor       String
+  usageTags            String       @default("[]")
   size                 String?
   suggestedSeason      String
   notes                String?
@@ -106,4 +108,20 @@ model WardrobeProfile {
   name      String   @unique
   defaultPantsFit String @default("original")
   createdAt DateTime @default(now())
+}
+
+model ClothingCategory {
+  id String @id
+  label String
+  group String
+  sortOrder Int @default(0)
+  active Boolean @default(true)
+  builtIn Boolean @default(false)
+  @@unique([group, label])
+}
+
+model CategoryFavorite {
+  profileId String
+  categoryId String
+  @@id([profileId, categoryId])
 }

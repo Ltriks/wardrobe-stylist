@@ -1,6 +1,7 @@
 'use client';
+import { useCategories } from './CategoryProvider';
 
-import { categoryLabels, seasonLabels } from '../lib/display-labels';
+import { seasonLabels } from '../lib/display-labels';
 
 import { useState } from 'react';
 import { Outfit, ClothingItem } from '../types';
@@ -30,6 +31,7 @@ export default function OutfitList({
   onGenerateTryOn,
   onChangeClothingFit,
 }: OutfitListProps) {
+  const { labels: categoryLabels } = useCategories();
   const [openOutfitId, setOpenOutfitId] = useState<string | null>(null);
   const [cardPreviewModes, setCardPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
   const [detailPreviewModes, setDetailPreviewModes] = useState<Record<string, 'board' | 'tryOn'>>({});
@@ -174,7 +176,7 @@ export default function OutfitList({
                         <div key={outfitItem.clothingItemId} className="flex items-center gap-2 text-sm">
                           <span className="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
                           <span className="truncate text-gray-700">{item.name}</span>
-                          <span className="ml-auto shrink-0 text-xs text-gray-400">{categoryLabels[item.category]}</span>
+                          <span className="ml-auto shrink-0 text-xs text-gray-400">{(categoryLabels[item.category] || item.category)}</span>
                         </div>
                       );
                     })}
@@ -278,7 +280,7 @@ export default function OutfitList({
                       <div key={outfitItem.clothingItemId} className="flex items-center gap-2 text-sm">
                         <span className="h-2 w-2 shrink-0 rounded-full bg-gray-300"></span>
                         <span className="truncate text-gray-700">{item.name}</span>
-                        <span className="ml-auto shrink-0 text-xs text-gray-400">{categoryLabels[item.category]}</span>
+                        <span className="ml-auto shrink-0 text-xs text-gray-400">{(categoryLabels[item.category] || item.category)}</span>
                       </div>
                     );
                   })}

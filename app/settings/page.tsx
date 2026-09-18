@@ -83,6 +83,10 @@ export default function SettingsPage() {
           <p className="mt-3 text-sm leading-6 text-slate-600">挑选喜欢的界面风格，设置全家共用的试穿模型。</p>
         </header>
 
+        <Link href="/settings/categories" className="mb-6 block border-2 border-black bg-yellow-100 p-5 shadow-sm">
+          <h2 className="text-lg font-bold">分类管理 →</h2>
+          <p className="mt-2 text-sm">按部位整理全家分类，添加细分类，设置当前成员的常用项。</p>
+        </Link>
         <ThemePanel />
 
         {message && <div role={message.error ? 'alert' : 'status'} className={`mb-5 rounded-xl border px-4 py-3 text-sm ${message.error ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{message.text}</div>}

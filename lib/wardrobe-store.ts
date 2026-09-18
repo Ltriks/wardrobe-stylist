@@ -1,3 +1,5 @@
+import { validateCategory } from './category-store';
+import { parseUsageTags } from './category-catalog';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from './db';
@@ -44,6 +46,7 @@ function mapClothingItem(record: {
   name: string;
   category: string;
   color: string;
+  usageTags: string;
   size: string | null;
   season: string;
   imageUrl: string | null;
@@ -58,6 +61,7 @@ function mapClothingItem(record: {
     name: record.name,
     category: record.category as ClothingItem['category'],
     color: record.color,
+    usageTags: JSON.parse(record.usageTags || "[]"),
     size: record.size ?? undefined,
     season: parseSeasonValue(record.season),
     imageUrl: record.imageUrl ?? undefined,
@@ -155,6 +159,7 @@ function mapPendingItem(record: {
   suggestedName: string;
   suggestedCategory: string;
   suggestedColor: string;
+  usageTags: string;
   size: string | null;
   suggestedSeason: string;
   notes: string | null;
@@ -178,6 +183,7 @@ function mapPendingItem(record: {
     suggestedName: record.suggestedName,
     suggestedCategory: record.suggestedCategory as PendingItem['suggestedCategory'],
     suggestedColor: record.suggestedColor,
+    usageTags: JSON.parse(record.usageTags || "[]"),
     size: record.size ?? undefined,
     suggestedSeason: parseSeasonValue(record.suggestedSeason),
     notes: record.notes ?? undefined,
@@ -204,12 +210,14 @@ export async function listClothingItems(): Promise<ClothingItem[]> {
 }
 
 export async function createClothingItem(data: ClothingItemFormData): Promise<ClothingItem> {
+  await validateCategory(data.category);
   const item = await prisma.clothingItem.create({
     data: {
       profileId: currentProfileId(),
       name: data.name,
       category: data.category,
       color: data.color,
+      usageTags: JSON.stringify(parseUsageTags(data.usageTags ?? [])),
       size: data.size,
       season: stringifySeasonValue(data.season),
       imageUrl: data.imageUrl,
@@ -226,12 +234,14 @@ export async function updateClothingItem(id: string, data: Partial<ClothingItemF
   const existing = await prisma.clothingItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return null;
 
+  if (data.category !== undefined) await validateCategory(data.category, existing.category);
   const item = await prisma.clothingItem.update({
     where: { id, profileId: currentProfileId() },
     data: {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
       ...(data.color !== undefined ? { color: data.color } : {}),
+      ...(data.usageTags !== undefined ? { usageTags: JSON.stringify(parseUsageTags(data.usageTags)) } : {}),
       ...(data.size !== undefined ? { size: data.size } : {}),
       ...(data.season !== undefined ? { season: stringifySeasonValue(data.season) } : {}),
       ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
@@ -587,6 +597,7 @@ export async function listPendingUploadItems(batchId?: string): Promise<PendingI
 export async function createPendingUploadBatch(items: PendingItem[], batchId?: string): Promise<{ batchId: string; items: PendingItem[] }> {
   const resolvedBatchId = batchId ?? crypto.randomUUID();
 
+  for (const item of items) await validateCategory(item.suggestedCategory);
   await prisma.pendingUploadItem.createMany({
     data: items.map(item => ({
       profileId: currentProfileId(),
@@ -598,6 +609,7 @@ export async function createPendingUploadBatch(items: PendingItem[], batchId?: s
       suggestedName: item.suggestedName,
       suggestedCategory: item.suggestedCategory,
       suggestedColor: item.suggestedColor,
+      usageTags: JSON.stringify(parseUsageTags(item.usageTags ?? [])),
       size: item.size,
       suggestedSeason: stringifySeasonValue(item.suggestedSeason),
       notes: item.notes,
@@ -622,6 +634,7 @@ export async function updatePendingUploadItem(id: string, updates: Partial<Pendi
   const existing = await prisma.pendingUploadItem.findUnique({ where: { id, profileId: currentProfileId() } });
   if (!existing) return null;
 
+  if (updates.suggestedCategory !== undefined) await validateCategory(updates.suggestedCategory, existing.suggestedCategory);
   const item = await prisma.pendingUploadItem.update({
     where: { id, profileId: currentProfileId() },
     data: {
@@ -631,6 +644,7 @@ export async function updatePendingUploadItem(id: string, updates: Partial<Pendi
       ...(updates.suggestedName !== undefined ? { suggestedName: updates.suggestedName } : {}),
       ...(updates.suggestedCategory !== undefined ? { suggestedCategory: updates.suggestedCategory } : {}),
       ...(updates.suggestedColor !== undefined ? { suggestedColor: updates.suggestedColor } : {}),
+      ...(updates.usageTags !== undefined ? { usageTags: JSON.stringify(parseUsageTags(updates.usageTags)) } : {}),
       ...(updates.size !== undefined ? { size: updates.size } : {}),
       ...(updates.suggestedSeason !== undefined ? { suggestedSeason: stringifySeasonValue(updates.suggestedSeason) } : {}),
       ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
@@ -654,11 +668,14 @@ export async function confirmPendingUploadItem(id: string): Promise<ClothingItem
     if (!draft) return null;
     if (draft.status !== 'pending') throw new Error('这件衣物已跳过，请先恢复后再确认。');
     if (!draft.suggestedName.trim()) throw new Error('请填写衣物名称后再确认。');
+    const category = await tx.clothingCategory.findUnique({where:{id:draft.suggestedCategory}});
+    if (!category?.active) throw new Error('分类已停用，请重新选择后确认。');
     const item = await tx.clothingItem.create({ data: {
       profileId: currentProfileId(),
       name: draft.suggestedName.trim(),
       category: draft.suggestedCategory,
       color: draft.suggestedColor,
+      usageTags: draft.usageTags,
       size: draft.size,
       season: draft.suggestedSeason,
       imageUrl: draft.imageUrl,

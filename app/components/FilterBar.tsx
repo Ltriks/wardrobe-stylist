@@ -1,6 +1,6 @@
 'use client';
 
-import { clothingCategories } from '../../lib/clothing-categories';
+import CategorySelect from './CategorySelect';
 
 import { Category, Season } from '../types';
 
@@ -12,7 +12,6 @@ interface FilterBarProps {
   onClear: () => void;
 }
 
-const CATEGORIES: { value: Category | ''; label: string }[] = [{ value: '', label: '全部分类' }, ...clothingCategories];
 
 const SEASONS: { value: Season | ''; label: string }[] = [
   { value: '', label: "全部季节" },
@@ -39,18 +38,7 @@ export default function FilterBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <select
-          aria-label="衣物分类"
-          value={selectedCategory}
-          onChange={e => onCategoryChange(e.target.value as Category | '')}
-          className="min-w-[160px] rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-        >
-          {CATEGORIES.map(cat => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
+        <div className="w-full sm:w-64"><CategorySelect value={selectedCategory} onChange={onCategoryChange} filter placeholder="全部分类"/></div>
 
         <select
           aria-label="衣物季节"

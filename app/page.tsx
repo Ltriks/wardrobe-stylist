@@ -1,4 +1,6 @@
 'use client';
+import { useCategories } from './components/CategoryProvider';
+import { matchesCategory } from '../lib/category-catalog';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -25,6 +27,7 @@ type TabType = 'clothes' | 'outfits';
 
 export default function Home() {
   const router = useRouter();
+  const { categories } = useCategories();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
@@ -86,11 +89,11 @@ export default function Home() {
   // Filter items based on selected filters
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const matchCategory = !selectedCategory || item.category === selectedCategory;
+      const matchCategory = matchesCategory(item.category, selectedCategory, categories);
       const matchSeason = !selectedSeason || item.season.includes(selectedSeason);
       return matchCategory && matchSeason;
     });
-  }, [items, selectedCategory, selectedSeason]);
+  }, [items, selectedCategory, selectedSeason, categories]);
 
   // Clothing handlers
   const handleAddItem = useCallback(() => {
@@ -351,7 +354,8 @@ export default function Home() {
 
   const wardrobeSummary = useMemo(() => {
     const categoryCounts = items.reduce<Record<string, number>>((acc, item) => {
-      acc[item.category] = (acc[item.category] || 0) + 1;
+      const group = categories.find(c=>c.id===item.category)?.group || 'other';
+      acc[group] = (acc[group] || 0) + 1;
       return acc;
     }, {});
 
@@ -362,7 +366,7 @@ export default function Home() {
       bottoms: categoryCounts.bottom || 0,
       template: defaultTemplate?.name || "还未上传人物照片",
     };
-  }, [items, outfits, defaultTemplate]);
+  }, [items, outfits, defaultTemplate, categories]);
 
   return (
     <main className="wardrobe-page min-h-screen">
@@ -540,6 +544,7 @@ export default function Home() {
               name: editingItem.name,
               category: editingItem.category,
               color: editingItem.color,
+              usageTags: editingItem.usageTags,
               size: editingItem.size,
               season: editingItem.season,
               imageUrl: editingItem.imageUrl,

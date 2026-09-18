@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { CategoryProvider } from './components/CategoryProvider';
 import ProfileSwitcher from './components/ProfileSwitcher';
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" data-theme="rebel" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: "try{var t=localStorage.getItem('wardrobe-theme');if(t==='paper'||t==='rebel')document.documentElement.dataset.theme=t}catch(e){}" }} /></head>
-      <body><ProfileSwitcher />{children}</body>
+      <body><CategoryProvider><ProfileSwitcher />{children}</CategoryProvider></body>
     </html>
   );
 }
