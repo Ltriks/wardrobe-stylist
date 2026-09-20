@@ -73,6 +73,38 @@ test('family wardrobes preserve old data and scope all wardrobe operations', asy
       assert.equal((await as('child', () => store.updateClothingItem(childItem.id, { name: 'Child updated' }))).name, 'Child updated');
     });
 
+    await t.test('replacing or clearing a clothing photo invalidates old processed images and persists after reload', async () => {
+      const original = {
+        imageUrl: '/uploads/originals/old.jpg',
+        standardizedImageUrl: '/uploads/standardized/old-standardized.png',
+        cutoutImageUrl: '/uploads/cutouts/old-cutout.png',
+      };
+      const item = await as('child', () => store.createClothingItem({ name: '换图测试', category: 'top', color: 'white', season: [], ...original }));
+      const metadataOnly = await as('child', () => store.updateClothingItem(item.id, { name: '改名', imageUrl: original.imageUrl }));
+      assert.equal(metadataOnly.standardizedImageUrl, original.standardizedImageUrl);
+      assert.equal(metadataOnly.cutoutImageUrl, original.cutoutImageUrl);
+      assert.equal(await as('default', () => store.updateClothingItem(item.id, { imageUrl: '/uploads/wrong.jpg' })), null);
+      const replaced = await as('child', () => store.updateClothingItem(item.id, { imageUrl: '/uploads/originals/new.jpg' }));
+      assert.equal(replaced.imageUrl, '/uploads/originals/new.jpg');
+      assert.equal(replaced.standardizedImageUrl, undefined);
+      assert.equal(replaced.cutoutImageUrl, undefined);
+      const reloaded = (await as('child', store.listClothingItems)).find(row => row.id === item.id);
+      // Both the wardrobe thumbnail and board input prefer the processed image if present.
+      assert.equal(reloaded.standardizedImageUrl || reloaded.imageUrl, '/uploads/originals/new.jpg');
+      const persisted = await db.clothingItem.findUnique({ where: { id: item.id } });
+      assert.equal(persisted.standardizedImageUrl, null);
+      assert.equal(persisted.cutoutImageUrl, null);
+      await as('child', () => store.updateClothingItem(item.id, { standardizedImageUrl: '/uploads/standardized/new-standardized.png', cutoutImageUrl: '/uploads/cutouts/new-cutout.png' }));
+      const cleared = await as('child', () => store.updateClothingItem(item.id, { imageUrl: '' }));
+      assert.equal(cleared.imageUrl, '');
+      assert.equal(cleared.standardizedImageUrl, undefined);
+      assert.equal(cleared.cutoutImageUrl, undefined);
+      const stalePayload = await as('child', () => store.updateClothingItem(item.id, { ...original, imageUrl: '/uploads/originals/another.jpg' }));
+      assert.equal(stalePayload.standardizedImageUrl, undefined);
+      assert.equal(stalePayload.cutoutImageUrl, undefined);
+      await as('child', () => store.removeClothingItem(item.id));
+    });
+
     await t.test('outfits reject cross-member pieces, lookups, updates and job results', async () => {
       await assert.rejects(as('child', () => store.createOutfitRecord({ name: 'Mixed', itemIds: ['legacy-item'], season: [] })), /不属于/);
       childOutfit = await as('child', () => store.createOutfitRecord({ name: 'Child look', itemIds: [childItem.id], season: [] }));

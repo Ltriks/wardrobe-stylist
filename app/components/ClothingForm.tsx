@@ -68,7 +68,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || isUploading) return;
     await onSubmit(formData);
   };
 
@@ -242,6 +242,7 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
           <input
             type="text"
             inputMode="url"
+            disabled={isUploading}
             value={formData.imageUrl}
             onChange={e => {
               setFormData(prev => ({ ...prev, imageUrl: e.target.value }));
@@ -294,10 +295,10 @@ export default function ClothingForm({ initialData, onSubmit, onCancel }: Clothi
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
-          disabled={!formData.name.trim()}
+          disabled={!formData.name.trim() || isUploading}
           className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
-          {initialData ? "保存衣物" : "添加衣物"}
+          {isUploading ? "图片上传中…" : initialData ? "保存衣物" : "添加衣物"}
         </button>
         <button
           type="button"

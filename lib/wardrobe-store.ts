@@ -235,6 +235,7 @@ export async function updateClothingItem(id: string, data: Partial<ClothingItemF
   if (!existing) return null;
 
   if (data.category !== undefined) await validateCategory(data.category, existing.category);
+  const imageChanged = data.imageUrl !== undefined && data.imageUrl !== existing.imageUrl;
   const item = await prisma.clothingItem.update({
     where: { id, profileId: currentProfileId() },
     data: {
@@ -247,6 +248,10 @@ export async function updateClothingItem(id: string, data: Partial<ClothingItemF
       ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl } : {}),
       ...(data.standardizedImageUrl !== undefined ? { standardizedImageUrl: data.standardizedImageUrl } : {}),
       ...(data.cutoutImageUrl !== undefined ? { cutoutImageUrl: data.cutoutImageUrl } : {}),
+      // Processed assets belong to the previous source photo. Invalidate them
+      // atomically, including stale URLs echoed by clients, so every consumer
+      // uses the replacement photo until new processed assets are generated.
+      ...(imageChanged ? { standardizedImageUrl: null, cutoutImageUrl: null } : {}),
       ...(data.notes !== undefined ? { notes: data.notes } : {}),
     },
   });
