@@ -1,3 +1,5 @@
+import { logTryOnError, safeTryOnError } from './tryon-diagnostics';
+import { currentProfileId } from './profile-context';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
@@ -17,54 +19,62 @@ if (!globalForTryOnQueue.wardrobeTryOnJobs) {
 }
 
 export async function executeTryOnJob(outfitId: string) {
-  const [outfit, template] = await Promise.all([
-    getOutfitRecord(outfitId),
-    getDefaultTemplateRecord(),
-  ]);
+  let stage = 'prepare-references';
+  try {
+    const [outfit, template] = await Promise.all([
+      getOutfitRecord(outfitId),
+      getDefaultTemplateRecord(),
+    ]);
 
-  if (!outfit) {
-    throw new Error('Outfit not found.');
+    if (!outfit) {
+      throw new Error('Outfit not found.');
+    }
+
+    if (!outfit.boardImageUrl) {
+      throw new Error('This outfit does not have a board image yet.');
+    }
+
+    if (!template) {
+      throw new Error('Upload and set a default template before generating a try-on preview.');
+    }
+
+    await ensureWardrobeAssetDirs();
+
+    const templateAsset = resolveUploadAsset(template.imageUrl);
+    const boardAsset = resolveUploadAsset(outfit.boardImageUrl);
+
+    stage = 'generate-image';
+    const { imageUrl, prompt } = await generateTryOnImage({
+      templateImagePath: templateAsset.absolutePath,
+      boardImagePath: boardAsset.absolutePath,
+      clothingFit: outfit.pantsFit ?? 'original',
+    });
+
+    stage = 'download-result';
+    const generatedImage = await fetch(imageUrl);
+    if (!generatedImage.ok) {
+      throw safeTryOnError(new Error(`Failed to download generated image (${generatedImage.status}).`), { httpStatus: generatedImage.status });
+    }
+
+    const arrayBuffer = await generatedImage.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const filename = `tryon-${Date.now()}-${randomUUID().slice(0, 8)}${extname(basename(new URL(imageUrl).pathname)) || '.png'}`;
+    const outputPath = join(tryonsDir, filename);
+    stage = 'save-result';
+    await writeFile(outputPath, buffer);
+
+    const updatedOutfit = await updateOutfitTryOnState(outfitId, {
+      tryOnImageUrl: publicAssetUrl('tryons', filename),
+      tryOnStatus: 'success',
+      tryOnPrompt: prompt,
+      tryOnFit: outfit.pantsFit ?? 'original',
+      tryOnError: null,
+    });
+
+    return updatedOutfit;
+  } catch (error) {
+    throw safeTryOnError(error, { stage });
   }
-
-  if (!outfit.boardImageUrl) {
-    throw new Error('This outfit does not have a board image yet.');
-  }
-
-  if (!template) {
-    throw new Error('Upload and set a default template before generating a try-on preview.');
-  }
-
-  await ensureWardrobeAssetDirs();
-
-  const templateAsset = resolveUploadAsset(template.imageUrl);
-  const boardAsset = resolveUploadAsset(outfit.boardImageUrl);
-
-  const { imageUrl, prompt } = await generateTryOnImage({
-    templateImagePath: templateAsset.absolutePath,
-    boardImagePath: boardAsset.absolutePath,
-    clothingFit: outfit.pantsFit ?? 'original',
-  });
-
-  const generatedImage = await fetch(imageUrl);
-  if (!generatedImage.ok) {
-    throw new Error(`Failed to download generated image (${generatedImage.status}).`);
-  }
-
-  const arrayBuffer = await generatedImage.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const filename = `tryon-${Date.now()}-${randomUUID().slice(0, 8)}${extname(basename(new URL(imageUrl).pathname)) || '.png'}`;
-  const outputPath = join(tryonsDir, filename);
-  await writeFile(outputPath, buffer);
-
-  const updatedOutfit = await updateOutfitTryOnState(outfitId, {
-    tryOnImageUrl: publicAssetUrl('tryons', filename),
-    tryOnStatus: 'success',
-    tryOnPrompt: prompt,
-    tryOnFit: outfit.pantsFit ?? 'original',
-    tryOnError: null,
-  });
-
-  return updatedOutfit;
 }
 
 export async function queueTryOnJob(outfitId: string) {
@@ -100,11 +110,17 @@ export async function queueTryOnJob(outfitId: string) {
     try {
       await executeTryOnJob(outfitId);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Try-on generation failed.';
-      await updateOutfitTryOnState(outfitId, {
-        tryOnStatus: 'failed',
-        tryOnError: message,
-      });
+      const safe = safeTryOnError(error);
+      const context = { outfitId, profileId: currentProfileId() };
+      logTryOnError('job-failed', safe, context);
+      try {
+        await updateOutfitTryOnState(outfitId, {
+          tryOnStatus: 'failed',
+          tryOnError: safe.message,
+        });
+      } catch (saveError) {
+        logTryOnError('failure-state-save-failed', saveError, { ...context, stage: 'save-failure-state' });
+      }
     } finally {
       runningJobs.delete(outfitId);
     }

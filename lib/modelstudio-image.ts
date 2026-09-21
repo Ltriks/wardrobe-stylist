@@ -1,13 +1,19 @@
+import { safeTryOnError, TryOnDetails } from './tryon-diagnostics';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { readAiSettings } from './ai-settings';
 import { resolveImageEndpoint } from './image-endpoint';
 import { ClothingFit, clothingFitPrompt, clothingFitNegativePrompt } from './tryon-fit';
 
-async function readResponse(response: Response) {
+async function readResponse(response: Response, details: TryOnDetails) {
+  details.httpStatus = response.status;
+  details.requestId = response.headers?.get('x-request-id') || response.headers?.get('x-dashscope-request-id') || undefined;
   const payload = await response.json().catch(() => {
     throw new Error(`试穿接口返回了无法解析的响应（HTTP ${response.status}），请检查接口地址。`);
   });
+  details.requestId = typeof payload?.request_id === 'string' ? payload.request_id : details.requestId;
+  const code = payload?.error?.code || payload?.code;
+  details.code = typeof code === 'string' ? code : undefined;
   if (!response.ok) {
     const message = payload?.error?.message || payload?.message || payload?.error;
     throw new Error(typeof message === 'string' ? message : `试穿生成请求失败（HTTP ${response.status}）。`);
@@ -15,15 +21,19 @@ async function readResponse(response: Response) {
   return payload;
 }
 
-async function waitForImageTask(endpoint: string, apiKey: string, taskId: string) {
+async function waitForImageTask(endpoint: string, apiKey: string, taskId: string, details: TryOnDetails) {
+  details.stage = 'poll-task';
+  details.taskId = taskId;
   const url = new URL(`/api/v1/tasks/${encodeURIComponent(taskId)}`, endpoint);
   const deadline = Date.now() + 10 * 60 * 1000;
   while (Date.now() < deadline) {
     const result = await readResponse(await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(Math.min(60000, Math.max(1, deadline - Date.now()))),
-    }));
+    }), details);
     const status = result?.output?.task_status;
+    details.taskStatus = typeof status === 'string' ? status : undefined;
+    if (typeof result?.output?.code === 'string') details.code = result.output.code;
     if (status === 'SUCCEEDED') return result;
     if (['FAILED', 'CANCELED', 'UNKNOWN'].includes(status)) {
       throw new Error(`试穿任务失败：${result.output.message || result.output.code || status}`);
@@ -95,56 +105,63 @@ export async function generateTryOnImage({
     throw new Error('请先在 AI 设置页面配置 API Key。');
   }
 
-  const [templateImage, boardImage] = await Promise.all([
-    encodeImageAsDataUrl(templateImagePath),
-    encodeImageAsDataUrl(boardImagePath),
-  ]);
+  const details: TryOnDetails = { stage: 'read-reference-images', model };
+  try {
+    const [templateImage, boardImage] = await Promise.all([
+      encodeImageAsDataUrl(templateImagePath),
+      encodeImageAsDataUrl(boardImagePath),
+    ]);
 
-  const endpoint = resolveImageEndpoint(baseUrl, model);
-  const parameters = {
-    n: 1,
-    prompt_extend: true,
-    watermark: false,
-    size: endpoint.protocol === 'images' ? '1024x1536' : '1024*1536',
-    negative_prompt:
-      'low resolution, blurry, distorted anatomy, duplicated limbs, extra garments, extra accessories, collage, text, watermark, cut off body, deformed clothing' + clothingFitNegativePrompt(clothingFit),
-  };
-  // Qwen Image 3 uses JSON /images/generations for both generation and editing.
-  // Send the local photos as data URLs; Alibaba does not need access to localhost.
-  const body = endpoint.protocol === 'images'
-    ? { model, prompt, image: [templateImage, boardImage], ...parameters }
-    : {
-      model,
-      input: { messages: [{ role: 'user', content: [{ image: templateImage }, { image: boardImage }, { text: prompt }] }] },
-      parameters,
+    const endpoint = resolveImageEndpoint(baseUrl, model);
+    Object.assign(details, { endpoint: endpoint.url, protocol: endpoint.protocol, stage: 'submit-request' });
+    const parameters = {
+      n: 1,
+      prompt_extend: true,
+      watermark: false,
+      size: endpoint.protocol === 'images' ? '1024x1536' : '1024*1536',
+      negative_prompt:
+        'low resolution, blurry, distorted anatomy, duplicated limbs, extra garments, extra accessories, collage, text, watermark, cut off body, deformed clothing' + clothingFitNegativePrompt(clothingFit),
     };
+    // Qwen Image 3 uses JSON /images/generations for both generation and editing.
+    // Send the local photos as data URLs; Alibaba does not need access to localhost.
+    const body = endpoint.protocol === 'images'
+      ? { model, prompt, image: [templateImage, boardImage], ...parameters }
+      : {
+        model,
+        input: { messages: [{ role: 'user', content: [{ image: templateImage }, { image: boardImage }, { text: prompt }] }] },
+        parameters,
+      };
 
-  const response = await fetch(endpoint.url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      ...(endpoint.protocol === 'dashscope-async' ? { 'X-DashScope-Async': 'enable' } : {}),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(endpoint.protocol === 'dashscope-async' ? 60000 : 600000),
-  });
+    const response = await fetch(endpoint.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        ...(endpoint.protocol === 'dashscope-async' ? { 'X-DashScope-Async': 'enable' } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(endpoint.protocol === 'dashscope-async' ? 60000 : 600000),
+    });
 
-  let payload = await readResponse(response);
-  if (endpoint.protocol === 'dashscope-async') {
-    if (typeof payload?.output?.task_id !== 'string' || !payload.output.task_id) {
-      throw new Error('试穿接口没有返回任务编号。');
+    let payload = await readResponse(response, details);
+    if (endpoint.protocol === 'dashscope-async') {
+      if (typeof payload?.output?.task_id !== 'string' || !payload.output.task_id) {
+        throw new Error('试穿接口没有返回任务编号。');
+      }
+      payload = await waitForImageTask(endpoint.url, apiKey, payload.output.task_id, details);
     }
-    payload = await waitForImageTask(endpoint.url, apiKey, payload.output.task_id);
+
+    const imageUrl = endpoint.protocol === 'images'
+      ? payload?.data?.find((item: { url?: string }) => typeof item?.url === 'string')?.url
+      : payload?.output?.choices?.[0]?.message?.content?.find((item: { image?: string }) => typeof item?.image === 'string')?.image;
+
+    if (!imageUrl) {
+      throw new Error('试穿接口没有返回图片，请检查模型与接口是否匹配。');
+    }
+
+    return { imageUrl, prompt };
+  } catch (error) {
+    // Redact with the actual configured key before persisting, returning or logging errors.
+    throw safeTryOnError(error, details, [apiKey]);
   }
-
-  const imageUrl = endpoint.protocol === 'images'
-    ? payload?.data?.find((item: { url?: string }) => typeof item?.url === 'string')?.url
-    : payload?.output?.choices?.[0]?.message?.content?.find((item: { image?: string }) => typeof item?.image === 'string')?.image;
-
-  if (!imageUrl) {
-    throw new Error('试穿接口没有返回图片，请检查模型与接口是否匹配。');
-  }
-
-  return { imageUrl, prompt };
 }

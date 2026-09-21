@@ -172,7 +172,13 @@ test('AI settings persist privately and control the next try-on request', async 
             : { task_status: status, message: 'test failure' }
           }) };
         };
-        await assert.rejects(generateTryOnImage(paths), /试穿任务失败：test failure/);
+        await assert.rejects(generateTryOnImage(paths), error => {
+          assert.match(error.message, /试穿任务失败：test failure/);
+          assert.equal(error.diagnostics.stage, 'poll-task');
+          assert.equal(error.diagnostics.taskId, 'failed-task');
+          assert.equal(error.diagnostics.taskStatus, status);
+          return true;
+        });
         assert.equal(calls, 2);
       }
       global.fetch = async () => ({ ok: true, json: async () => ({ output: {} }) });
@@ -188,6 +194,29 @@ test('AI settings persist privately and control the next try-on request', async 
       await assert.rejects(generateTryOnImage(paths), /HTTP 502/);
       global.fetch = async () => ({ ok: true, json: async () => ({ data: [] }) });
       await assert.rejects(generateTryOnImage(paths), /没有返回图片/);
+    });
+
+    await t.test('provider errors retain HTTP and request diagnostics without exposing credentials or images', async () => {
+      const key = 'private-fixture-key';
+      await settings.saveAiSettings({ model: 'qwen-image-3.0-pro', baseUrl: 'https://workspace.example/compatible-mode/v1', apiKey: key });
+      const paths = { templateImagePath: join(directory, 'template.png'), boardImagePath: join(directory, 'board.png') };
+      global.fetch = async () => ({ ok: false, status: 403, json: async () => ({
+        request_id: 'fixture-request', code: 'AccessDenied',
+        message: `Rejected ${key}, data:image/png;base64,SHOULD_NOT_APPEAR https://output.example/image?signature=secret`,
+        input: { image: 'private image contents' },
+      }) });
+      await assert.rejects(generateTryOnImage(paths), error => {
+        assert.equal(error.diagnostics.httpStatus, 403);
+        assert.equal(error.diagnostics.requestId, 'fixture-request');
+        assert.equal(error.diagnostics.code, 'AccessDenied');
+        assert.equal(error.diagnostics.stage, 'submit-request');
+        assert.equal(error.diagnostics.model, 'qwen-image-3.0-pro');
+        const serialized = JSON.stringify({ message: error.message, stack: error.stack, diagnostics: error.diagnostics });
+        for (const privateText of [key, 'SHOULD_NOT_APPEAR', 'signature=secret', 'private image contents']) assert.equal(serialized.includes(privateText), false);
+        return true;
+      });
+      global.fetch = async () => { const error = new TypeError('fetch failed'); error.cause = Object.assign(new Error('socket disconnected'), { code: 'ECONNRESET' }); throw error; };
+      await assert.rejects(generateTryOnImage(paths), error => error.cause.code === 'ECONNRESET' && error.diagnostics.stage === 'submit-request');
     });
 
     await t.test('reset restores environment; missing keys and corrupt files fail clearly', async () => {

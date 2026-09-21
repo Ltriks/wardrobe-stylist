@@ -1,8 +1,9 @@
 'use client';
 import { useCategories } from './components/CategoryProvider';
+import { logTryOnError } from '../lib/tryon-diagnostics';
 import { matchesCategory } from '../lib/category-catalog';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ClothingFit, clothingFitLabels } from '../lib/tryon-fit';
@@ -30,6 +31,18 @@ export default function Home() {
   const { categories } = useCategories();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [outfits, setOutfits] = useState<Outfit[]>([]);
+  const loggedTryOnFailures = useRef(new Map<string, string>());
+  useEffect(() => {
+    const seen = loggedTryOnFailures.current;
+    for (const id of Array.from(seen.keys())) if (!outfits.some(outfit => outfit.id === id)) seen.delete(id);
+    for (const outfit of outfits) {
+      if (outfit.tryOnStatus !== 'failed') { seen.delete(outfit.id); continue; }
+      const message = outfit.tryOnError || '试穿图生成失败。';
+      if (seen.get(outfit.id) === message) continue;
+      seen.set(outfit.id, message);
+      logTryOnError('generation-failed', new Error(message), { outfitId: outfit.id, stage: 'browser-status' });
+    }
+  }, [outfits]);
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
   const [selectedSeason, setSelectedSeason] = useState<Season | ''>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -555,6 +568,7 @@ export default function Home() {
           />
         ) : editingOutfit ? (
           <OutfitForm
+            key={editingOutfit.id}
             items={items}
             initialData={{
               name: editingOutfit.name,
@@ -570,7 +584,7 @@ export default function Home() {
         ) : activeTab === 'clothes' ? (
           <ClothingForm onSubmit={handleItemSubmit} onCancel={handleCloseModal} />
         ) : (
-          <OutfitForm items={items} onSubmit={handleOutfitSubmit} onCancel={handleCloseModal} isSubmitting={isSubmittingOutfit} />
+          <OutfitForm key="new-outfit" items={items} onSubmit={handleOutfitSubmit} onCancel={handleCloseModal} isSubmitting={isSubmittingOutfit} />
         )}
       </Modal>
 

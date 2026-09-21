@@ -1,3 +1,5 @@
+import { logTryOnError, safeTryOnError } from '@/lib/tryon-diagnostics';
+import { currentProfileId } from '@/lib/profile-context';
 import { withProfile } from '@/lib/profiles';
 import { NextResponse } from 'next/server';
 
@@ -10,18 +12,17 @@ type GenerateTryOnRequest = {
 };
 
 async function handlePOST(request: Request) {
-  const payload = (await request.json()) as GenerateTryOnRequest;
-  const outfitId = payload.outfitId?.trim();
-
-  if (!outfitId) {
-    return NextResponse.json({ error: 'Missing outfitId.' }, { status: 400 });
-  }
-
+  let outfitId: string | undefined;
   try {
+    const payload = (await request.json()) as GenerateTryOnRequest;
+    outfitId = typeof payload?.outfitId === 'string' ? payload.outfitId.trim() : undefined;
+    if (!outfitId) throw new Error('Missing outfitId.');
     const updatedOutfit = await queueTryOnJob(outfitId);
     return NextResponse.json(updatedOutfit, { status: 202 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Try-on generation failed.';
+    const safe = safeTryOnError(error);
+    logTryOnError('request-failed', safe, { stage: 'queue-request', outfitId, profileId: currentProfileId() });
+    const message = safe.message;
     return NextResponse.json(
       {
         error: message,

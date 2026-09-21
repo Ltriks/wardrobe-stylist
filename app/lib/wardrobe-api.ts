@@ -1,5 +1,6 @@
 'use client';
 
+import { logTryOnError } from '../../lib/tryon-diagnostics';
 import { errorLabel } from './display-labels';
 
 import { wardrobeFetch } from './profile-client';
@@ -97,7 +98,7 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
       typeof (data as { error: unknown }).error === 'string'
         ? (data as { error: string }).error
         : `请求失败（${response.status}）`;
-    throw new Error(errorLabel(message));
+    throw Object.assign(new Error(errorLabel(message)), { status: response.status });
   }
 
   return data as T;
@@ -182,15 +183,20 @@ export async function generateBoardApi(outfitId: string): Promise<Outfit> {
 }
 
 export async function generateTryOnApi(outfitId: string): Promise<Outfit> {
-  const data = await parseJsonResponse<JsonRecord>(
-    await wardrobeFetch('/api/generate-tryon', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ outfitId }),
-    }),
-  );
+  try {
+    const data = await parseJsonResponse<JsonRecord>(
+      await wardrobeFetch('/api/generate-tryon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outfitId }),
+      }),
+    );
 
-  return parseOutfit(data);
+    return parseOutfit(data);
+  } catch (error) {
+    logTryOnError('request-failed', error, { outfitId, stage: 'browser-request' });
+    throw error;
+  }
 }
 
 export async function fetchTemplates(): Promise<PersonalTemplate[]> {

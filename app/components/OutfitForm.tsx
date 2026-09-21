@@ -6,7 +6,7 @@ import { matchesCategory } from '../../lib/category-catalog';
 
 import { colorLabel } from '../lib/display-labels';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Category, ClothingItem, Season, OutfitFormData } from '../types';
 
 const SEASONS: { value: Season; label: string }[] = [
@@ -27,38 +27,18 @@ interface OutfitFormProps {
 
 export default function OutfitForm({ items, initialData, onSubmit, onCancel, isSubmitting = false }: OutfitFormProps) {
   const { labels: categoryLabels, categories } = useCategories();
-  const [formData, setFormData] = useState<OutfitFormData>({
-    name: '',
-    itemIds: [],
-    occasion: '',
-    season: [],
-    notes: '',
-  });
+  // Initial data is a snapshot for this editing session. Parent polling must
+  // not replace unsaved selections; the caller keys the form by outfit ID.
+  const [formData, setFormData] = useState<OutfitFormData>(() => ({
+    name: initialData?.name || '',
+    itemIds: [...(initialData?.itemIds || [])],
+    occasion: initialData?.occasion || '',
+    season: [...(initialData?.season || [])],
+    notes: initialData?.notes || '',
+  }));
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [colorFilter, setColorFilter] = useState('all');
-
-  // Update form when initialData changes (for edit mode)
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        itemIds: initialData.itemIds || [],
-        occasion: initialData.occasion || '',
-        season: initialData.season || [],
-        notes: initialData.notes || '',
-      });
-    } else {
-      // Reset form for add mode
-      setFormData({
-        name: '',
-        itemIds: [],
-        occasion: '',
-        season: [],
-        notes: '',
-      });
-    }
-  }, [initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
